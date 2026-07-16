@@ -10,7 +10,6 @@ import {
   SquareTerminal,
   FileText,
   Target,
-  BookMarked,
   FileUp,
   Image as ImageIcon,
   Bot,

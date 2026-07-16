@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { SectionContainer } from './ui/SectionContainer';
 import { AnimatedHeading } from './ui/AnimatedHeading';
-import { staggerChildren, fadeUp, fadeLeft, fadeRight } from '../lib/animations';
+import { staggerChildren, fadeUp } from '../lib/animations';
 import { CheckCircle2 } from 'lucide-react';
 import { GlassCard } from './ui/GlassCard';
 

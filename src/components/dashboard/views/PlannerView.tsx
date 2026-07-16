@@ -12,7 +12,7 @@ interface StudyTask {
 
 export const PlannerView = () => {
   const [tasks, setTasks] = useState<StudyTask[]>([]);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate] = useState(new Date());
 
   useEffect(() => {
     const saved = localStorage.getItem('prime_planner');

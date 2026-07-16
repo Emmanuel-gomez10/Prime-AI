@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Image as ImageIcon, Upload, X, Loader2, CheckCircle2, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Image as ImageIcon, Loader2, CheckCircle2, ChevronRight } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 

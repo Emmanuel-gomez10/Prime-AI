@@ -1,5 +1,5 @@
 import { AnimatedBackground } from '../components/AnimatedBackground';
-import { motion, useScroll, useTransform } from 'framer-motion';
+
 import { Navbar } from '../components/ui/Navbar';
 import { TrustedUniversities } from '../components/TrustedUniversities';
 import { FeaturesGrid } from '../components/FeaturesGrid';
@@ -12,9 +12,7 @@ import { HeroLeft } from '../components/HeroLeft';
 import { HeroDashboard } from '../components/HeroDashboard';
 
 export const Home = () => {
-  const { scrollY } = useScroll();
-  const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
-  const heroY = useTransform(scrollY, [0, 400], [0, -50]);
+
 
   return (
     <div className="min-h-screen font-sans text-textPrimary relative selection:bg-primary/30 pt-[80px]">

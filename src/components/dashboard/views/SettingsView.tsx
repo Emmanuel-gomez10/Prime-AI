@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Moon, Sun, Shield, CreditCard, User, LogOut, ChevronRight } from 'lucide-react';
+import { Bell, Shield, User, LogOut, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 
 export const SettingsView = () => {

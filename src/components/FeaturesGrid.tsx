@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FileUp, MessageSquare, Camera, LayoutGrid, Mic, Clock, ShieldAlert, GraduationCap, TrendingUp, CalendarDays, ArrowRight, ShieldCheck, Target, Calendar, Files, ClipboardList } from 'lucide-react';
+import { Mic, TrendingUp, ArrowRight, ShieldCheck, Target, Calendar, Files, ClipboardList } from 'lucide-react';
 
 const mainFeatures = [
   {

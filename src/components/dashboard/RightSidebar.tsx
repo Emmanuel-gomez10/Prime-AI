@@ -1,4 +1,4 @@
-import { X, FileText, Clock, CheckCircle2, Sparkles, ChevronRight } from 'lucide-react';
+import { X, FileText, Clock, Sparkles, ChevronRight } from 'lucide-react';
 
 const RECENT_FILES = [
   { name: 'Advanced Calculus CH4.pdf', time: '2 hours ago', type: 'PDF' },

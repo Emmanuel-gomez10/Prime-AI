@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Play, Check, Sparkles, Star, ArrowRight } from 'lucide-react';
+import { Play, Sparkles, Star, ArrowRight } from 'lucide-react';
 import { Magnetic } from './ui/Magnetic';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';

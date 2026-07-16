@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+
 import { PenTool, Download, Copy, Share2, Sparkles, RefreshCw, Type, AlignLeft } from 'lucide-react';
 
 export const EssayWriterView = () => {
