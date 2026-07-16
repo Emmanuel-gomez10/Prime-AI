@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-color: 248 250 252;
+    --surface-color: 255 255 255;
+    --text-primary: 15 23 42;
+    --text-secondary: 100 116 139;
+    --border-color: 0 0 0;
+    --card-hover: 0 0 0;
+  }
+
+  .dark {
+    --bg-color: 10 13 20;
+    --surface-color: 18 20 29;
+    --text-primary: 255 255 255;
+    --text-secondary: 255 255 255;
+    --border-color: 255 255 255;
+    --card-hover: 255 255 255;
+  }
+
+  /* Smooth transition for theme switching */
+  body, .transition-theme {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
+
+  h1, .h1 {
+    @apply font-display font-[800] tracking-tight !important;
+  }
+  h2, .h2 {
+    @apply font-display font-[700] tracking-tight !important;
+  }
+  h3, .h3 {
+    @apply font-display font-[600] tracking-tight !important;
+  }
+  h4, h5, h6 {
+    @apply font-display font-[600] tracking-tight !important;
+  }
+  body {
+    @apply bg-background text-primary-text font-sans font-[400] antialiased;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-surface/50 backdrop-blur-md border border-divider shadow-[0_8px_32px_rgba(0,0,0,0.37)];
+  }
+  .glass-card {
+    @apply bg-surface/60 backdrop-blur-lg border border-divider shadow-2xl;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+  }
+  .perspective-1000 { perspective: 1000px; }
+  .preserve-3d { transform-style: preserve-3d; }
+  .backface-hidden { backface-visibility: hidden; }
+}
