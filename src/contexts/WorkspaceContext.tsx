@@ -69,7 +69,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       // Get the Gemini model
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Publicly supported standard model
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" }); // Publicly supported standard model
 
       // Convert our message history to Gemini's format
       const history = messages.map(msg => ({
