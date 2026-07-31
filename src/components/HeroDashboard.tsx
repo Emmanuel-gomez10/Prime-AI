@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { 
   ArrowRight,
@@ -44,55 +44,48 @@ const SEARCH_PLACEHOLDERS = [
   "Research this topic"
 ];
 
-// Reusable Particle component
-const Particle = ({ color, delay, duration, style }: any) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0 }}
-    animate={{ 
-      opacity: [0, 0.8, 0],
-      scale: [0.5, 1.5, 0.5],
-      y: [0, -20, -40] 
-    }}
-    transition={{ 
-      duration, 
-      delay, 
-      repeat: Infinity, 
-      ease: "easeInOut" 
-    }}
-    className={`absolute rounded-full blur-[1px] ${color}`}
-    style={{ ...style }}
-  />
-);
-
-export const HeroDashboard = () => {
+export const HeroDashboard: React.FC = React.memo(() => {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [displayedPlaceholder, setDisplayedPlaceholder] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Parallax setup
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const springConfig = { damping: 25, stiffness: 150, mass: 0.5 };
+  const springConfig = { damping: 30, stiffness: 120, mass: 0.5 };
   const smoothX = useSpring(mouseX, springConfig);
   const smoothY = useSpring(mouseY, springConfig);
 
-  const parallaxX = useTransform(smoothX, [-0.5, 0.5], [-12, 12]);
-  const parallaxY = useTransform(smoothY, [-0.5, 0.5], [-12, 12]);
-  const parallaxXReverse = useTransform(smoothX, [-0.5, 0.5], [8, -8]);
-  const parallaxYReverse = useTransform(smoothY, [-0.5, 0.5], [8, -8]);
+  const parallaxX = useTransform(smoothX, [-0.5, 0.5], [-8, 8]);
+  const parallaxY = useTransform(smoothY, [-0.5, 0.5], [-8, 8]);
+  const parallaxXReverse = useTransform(smoothX, [-0.5, 0.5], [6, -6]);
+  const parallaxYReverse = useTransform(smoothY, [-0.5, 0.5], [6, -6]);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      // Disable heavy parallax on mobile (<768px)
-      if (window.innerWidth < 768) return;
-      const { innerWidth, innerHeight } = window;
-      const x = e.clientX / innerWidth - 0.5;
-      const y = e.clientY / innerHeight - 0.5;
-      mouseX.set(x);
-      mouseY.set(y);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
     };
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    let rafId: number;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (window.innerWidth < 1024) return;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const { innerWidth, innerHeight } = window;
+        mouseX.set(e.clientX / innerWidth - 0.5);
+        mouseY.set(e.clientY / innerHeight - 0.5);
+      });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      window.removeEventListener("mousemove", handleMouseMove);
+      cancelAnimationFrame(rafId);
+    };
   }, [mouseX, mouseY]);
 
   // Typing animation
@@ -104,7 +97,7 @@ export const HeroDashboard = () => {
       if (displayedPlaceholder.length > 0) {
         timeout = setTimeout(() => {
           setDisplayedPlaceholder(text.substring(0, displayedPlaceholder.length - 1));
-        }, 30); // Deleting speed
+        }, 35);
       } else {
         setIsDeleting(false);
         setPlaceholderIdx((prev) => (prev + 1) % SEARCH_PLACEHOLDERS.length);
@@ -113,9 +106,9 @@ export const HeroDashboard = () => {
       if (displayedPlaceholder.length < text.length) {
         timeout = setTimeout(() => {
           setDisplayedPlaceholder(text.substring(0, displayedPlaceholder.length + 1));
-        }, Math.random() * 50 + 50); // Human-like typing speed
+        }, 60);
       } else {
-        timeout = setTimeout(() => setIsDeleting(true), 2500); // Wait before deleting
+        timeout = setTimeout(() => setIsDeleting(true), 2500);
       }
     }
 
@@ -124,226 +117,183 @@ export const HeroDashboard = () => {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, x: 40 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 1, ease: "easeOut", delay: 0.6 }}
-      className="relative w-full max-w-[850px] xl:max-w-[950px] mx-auto lg:ml-auto flex items-center justify-center perspective-[1200px] py-10 lg:py-0"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="relative w-full max-w-[850px] xl:max-w-[950px] mx-auto lg:ml-auto flex items-center justify-center py-6 sm:py-10 lg:py-0 gpu-accelerated"
     >
       
       {/* Background Neon Rings & Glows */}
-      <motion.div 
-        style={{ x: parallaxXReverse, y: parallaxYReverse }}
-        className="absolute inset-0 flex items-center justify-center pointer-events-none scale-50 sm:scale-75 lg:scale-100"
-      >
-        {/* Ring 1 - Deep Purple (Outer) */}
+      {!isMobile && (
         <motion.div 
-          animate={{ rotate: 360, opacity: [0.4, 0.7, 0.4] }}
-          transition={{ rotate: { duration: 50, repeat: Infinity, ease: "linear" }, opacity: { duration: 6, repeat: Infinity, ease: "easeInOut" } }}
-          className="absolute w-[800px] h-[400px] border-[1px] border-[#8b5cf6]/30 rounded-[50%] shadow-[0_0_40px_rgba(139,92,246,0.15)]"
-        />
-        {/* Ring 2 - Blue (Inner) */}
-        <motion.div 
-          animate={{ rotate: -360, opacity: [0.3, 0.6, 0.3] }}
-          transition={{ rotate: { duration: 35, repeat: Infinity, ease: "linear" }, opacity: { duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 } }}
-          className="absolute w-[600px] h-[600px] border-[1px] border-[#3b82f6]/20 rounded-[50%] shadow-[0_0_20px_rgba(59,130,246,0.15)]"
-        />
-        {/* Ring 3 - Faint Purple Cross */}
-        <motion.div 
-          animate={{ rotate: 180 }}
-          transition={{ duration: 70, repeat: Infinity, ease: "linear" }}
-          className="absolute w-[900px] h-[250px] border-[1px] border-[#a855f7]/20 rounded-[50%] shadow-[0_0_15px_rgba(168,85,247,0.1)]"
-        />
-        
-        {/* Soft blooms */}
-        <div className="absolute w-[500px] h-[500px] bg-[#6d28d9]/10 blur-[150px] rounded-full" />
-        <div className="absolute top-10 left-10 w-[300px] h-[300px] bg-[#3b82f6]/10 blur-[120px] rounded-full" />
-
-        {/* Particles */}
-        <Particle color="bg-[#a855f7]" delay={0} duration={4} style={{ width: 4, height: 4, top: '15%', left: '25%' }} />
-        <Particle color="bg-[#60a5fa]" delay={2} duration={5} style={{ width: 3, height: 3, top: '65%', left: '75%' }} />
-        <Particle color="bg-white" delay={1} duration={6} style={{ width: 2, height: 2, top: '85%', left: '35%' }} />
-        <Particle color="bg-[#c084fc]" delay={3} duration={4.5} style={{ width: 5, height: 5, top: '25%', left: '85%' }} />
-        <Particle color="bg-[#93c5fd]" delay={0.5} duration={5.5} style={{ width: 3, height: 3, top: '75%', left: '15%' }} />
-      </motion.div>
+          style={{ x: parallaxXReverse, y: parallaxYReverse }}
+          className="absolute inset-0 flex items-center justify-center pointer-events-none scale-75 lg:scale-100 gpu-accelerated"
+        >
+          {/* Ring 1 - Deep Purple */}
+          <div className="absolute w-[700px] h-[350px] border-[1px] border-[#8b5cf6]/20 rounded-[50%] shadow-[0_0_30px_rgba(139,92,246,0.1)]" />
+          {/* Ring 2 - Blue */}
+          <div className="absolute w-[520px] h-[520px] border-[1px] border-[#3b82f6]/15 rounded-[50%] shadow-[0_0_20px_rgba(59,130,246,0.1)]" />
+          
+          {/* Soft blooms */}
+          <div className="absolute w-[400px] h-[400px] bg-[#6d28d9]/10 blur-[100px] rounded-full" />
+        </motion.div>
+      )}
 
       {/* Main Dashboard Panel */}
       <motion.div
-        style={{ x: parallaxX, y: parallaxY }}
-        animate={{ y: [-6, 6, -6] }}
+        style={{ x: isMobile ? 0 : parallaxX, y: isMobile ? 0 : parallaxY }}
+        animate={isMobile ? {} : { y: [-4, 4, -4] }}
         transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-        className="relative z-10 w-full rounded-[24px] bg-[#0A0B10] border border-[#1e1f2e] shadow-[0_40px_100px_-20px_rgba(0,0,0,1)] flex overflow-hidden"
+        className="relative z-10 w-full rounded-[20px] sm:rounded-[24px] bg-[#0A0B10] border border-[#1e1f2e] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] flex overflow-hidden gpu-accelerated"
       >
         {/* Top Header - Logo */}
-        <div className="absolute top-0 left-0 w-full p-6 flex items-center gap-3 z-30 pointer-events-none">
-          <div className="w-[72px] flex items-center justify-center shrink-0">
+        <div className="absolute top-0 left-0 w-full p-4 sm:p-6 flex items-center gap-3 z-30 pointer-events-none">
+          <div className="w-10 sm:w-[72px] flex items-center justify-center shrink-0">
              <div className="flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-[#a855f7] fill-[#a855f7]" />
+                <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-[#a855f7] fill-[#a855f7]" />
              </div>
           </div>
-          <span className="text-primary-text text-[15px] font-medium tracking-wide">Prime AI</span>
+          <span className="text-primary-text text-[14px] sm:text-[15px] font-medium tracking-wide">Prime AI</span>
         </div>
 
         {/* Main Layout Container */}
-        <div className="flex w-full pt-[80px]">
+        <div className="flex w-full pt-[64px] sm:pt-[80px]">
           
           {/* Left Sidebar Icons */}
-          <div className="hidden sm:flex w-[72px] flex-col items-center pb-8 space-y-4 shrink-0 z-20">
+          <div className="hidden sm:flex w-[60px] sm:w-[72px] flex-col items-center pb-8 space-y-4 shrink-0 z-20">
             <div className="flex flex-col space-y-3 justify-start">
               {SIDEBAR_ACTIONS.map((action, idx) => (
-                <motion.button 
+                <div 
                   key={idx}
-                  whileHover={{ scale: action.active ? 1 : 1.1 }}
-                  className={`w-[42px] h-[42px] flex items-center justify-center rounded-2xl transition-all duration-300 group ${
+                  className={`w-[38px] h-[38px] sm:w-[42px] sm:h-[42px] flex items-center justify-center rounded-2xl transition-all duration-200 cursor-pointer ${
                     action.active 
                       ? 'bg-[#212330] text-primary-text shadow-md' 
                       : 'text-secondary-text hover:text-primary-text hover:bg-card-hover'
                   }`}
                 >
-                  <action.icon className="w-[20px] h-[20px]" strokeWidth={action.active ? 2.5 : 2} />
-                </motion.button>
+                  <action.icon className="w-[18px] h-[18px] sm:w-[20px] sm:h-[20px]" strokeWidth={action.active ? 2.5 : 2} />
+                </div>
               ))}
             </div>
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 px-8 lg:px-10 pb-10 flex flex-col justify-start relative z-20">
+          <div className="flex-1 px-4 sm:px-8 lg:px-10 pb-6 sm:pb-10 flex flex-col justify-start relative z-20">
             
             {/* Greeting */}
-            <div className="mb-8">
-              <h3 className="text-[32px] font-semibold text-primary-text mb-2 flex items-center gap-3 tracking-tight">
-                Hello Student <span className="animate-wave origin-bottom-right block">👋</span>
+            <div className="mb-6 sm:mb-8">
+              <h3 className="text-[24px] sm:text-[32px] font-semibold text-primary-text mb-1 sm:mb-2 flex items-center gap-2 sm:gap-3 tracking-tight">
+                Hello Student <span>👋</span>
               </h3>
-              <p className="text-[15px] text-secondary-text">How can I help you today?</p>
+              <p className="text-[13px] sm:text-[15px] text-secondary-text">How can I help you today?</p>
             </div>
 
             {/* Search Bar */}
-            <div className="relative mb-6 group cursor-text w-full max-w-full">
-              <div className="relative flex items-center bg-[#0d0e15] border border-[#1e1f2e] rounded-[18px] p-2 pl-6 shadow-inner transition-all duration-300 focus-within:border-[#8b5cf6]/50 hover:border-[#2a2b36]">
-                <div className="flex-1 flex items-center py-2">
-                  <span className="text-secondary-text text-[15px] font-light tracking-wide">{displayedPlaceholder}</span>
-                  <motion.div 
-                     animate={{ opacity: [1, 0, 1] }}
-                     transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                     className="w-[2px] h-5 bg-[#8b5cf6] ml-1"
-                  />
+            <div className="relative mb-5 sm:mb-6 group cursor-text w-full max-w-full">
+              <div className="relative flex items-center bg-[#0d0e15] border border-[#1e1f2e] rounded-[16px] sm:rounded-[18px] p-1.5 sm:p-2 pl-4 sm:pl-6 shadow-inner transition-all duration-300 focus-within:border-[#8b5cf6]/50 hover:border-[#2a2b36]">
+                <div className="flex-1 flex items-center py-1.5 sm:py-2 overflow-hidden">
+                  <span className="text-secondary-text text-[13px] sm:text-[15px] font-light tracking-wide truncate">{displayedPlaceholder}</span>
+                  <span className="w-[2px] h-4 sm:h-5 bg-[#8b5cf6] ml-1 shrink-0 animate-pulse" />
                 </div>
-                <motion.button 
-                  whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(139,92,246,0.6)" }}
-                  whileTap={{ scale: 0.95 }}
-                  className="w-12 h-12 rounded-[14px] bg-[#8b5cf6] flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.4)] ml-3 transition-colors hover:bg-[#7c3aed]"
+                <button 
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-[12px] sm:rounded-[14px] bg-[#8b5cf6] flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.4)] ml-2 sm:ml-3 transition-colors hover:bg-[#7c3aed] shrink-0 min-h-[44px] min-w-[44px]"
+                  aria-label="Submit search"
                 >
-                  <ArrowRight className="w-[20px] h-[20px] text-primary-text" />
-                </motion.button>
+                  <ArrowRight className="w-[18px] h-[18px] sm:w-[20px] sm:h-[20px] text-primary-text" />
+                </button>
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="flex flex-wrap gap-3 mb-10">
+            <div className="flex flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-10">
               {QUICK_ACTIONS.map((action) => (
-                <motion.button
+                <button
                   key={action.title}
-                  whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.04)" }}
-                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-[14px] bg-transparent border border-[#1e1f2e] hover:border-white/20 transition-all duration-250 group"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-[12px] sm:rounded-[14px] bg-transparent border border-[#1e1f2e] hover:border-white/20 transition-all duration-200 group min-h-[40px]"
                 >
-                  <action.icon className="w-[15px] h-[15px] text-secondary-text group-hover:text-primary-text transition-colors" />
-                  <span className="text-[13px] font-medium text-primary-text group-hover:text-primary-text transition-colors tracking-wide">
+                  <action.icon className="w-[14px] h-[14px] sm:w-[15px] sm:h-[15px] text-secondary-text group-hover:text-primary-text transition-colors" />
+                  <span className="text-[12px] sm:text-[13px] font-medium text-primary-text tracking-wide">
                     {action.title}
                   </span>
-                </motion.button>
+                </button>
               ))}
             </div>
 
             {/* Feature Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5">
               {/* Study Fetch */}
-              <motion.div 
-                whileHover={{ y: -4, borderColor: "rgba(16,185,129,0.3)" }}
-                className="bg-[#0b0d13] border border-[#1e1f2e] rounded-[20px] p-5 cursor-pointer flex flex-col transition-all duration-300"
-              >
-                <div className="w-11 h-11 rounded-[12px] bg-[#064e3b] text-[#34d399] flex items-center justify-center mb-4 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                  <FileUp className="w-5 h-5" />
+              <div className="bg-[#0b0d13] border border-[#1e1f2e] rounded-[16px] sm:rounded-[20px] p-4 sm:p-5 cursor-pointer flex flex-col transition-all duration-200 hover:border-emerald-500/30">
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] sm:rounded-[12px] bg-[#064e3b] text-[#34d399] flex items-center justify-center mb-3 sm:mb-4">
+                  <FileUp className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <h4 className="text-primary-text font-medium text-[15px] mb-2">Study Fetch</h4>
-                <p className="text-secondary-text text-[13px] leading-relaxed">Upload lecture PDFs and get instant explanations.</p>
-              </motion.div>
+                <h4 className="text-primary-text font-medium text-[14px] sm:text-[15px] mb-1 sm:mb-2">Study Fetch</h4>
+                <p className="text-secondary-text text-[12px] sm:text-[13px] leading-relaxed">Upload lecture PDFs and get instant explanations.</p>
+              </div>
 
               {/* AI Tutor */}
-              <motion.div 
-                whileHover={{ y: -4, borderColor: "rgba(139,92,246,0.3)" }}
-                className="bg-[#0c0a13] border border-[#1e1f2e] rounded-[20px] p-5 cursor-pointer flex flex-col transition-all duration-300"
-              >
-                <div className="w-11 h-11 rounded-[12px] bg-[#4c1d95] text-[#c4b5fd] flex items-center justify-center mb-4 shadow-[0_0_15px_rgba(139,92,246,0.15)]">
-                  <Bot className="w-5 h-5" />
+              <div className="bg-[#0c0a13] border border-[#1e1f2e] rounded-[16px] sm:rounded-[20px] p-4 sm:p-5 cursor-pointer flex flex-col transition-all duration-200 hover:border-purple-500/30">
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] sm:rounded-[12px] bg-[#4c1d95] text-[#c4b5fd] flex items-center justify-center mb-3 sm:mb-4">
+                  <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <h4 className="text-primary-text font-medium text-[15px] mb-2">AI Tutor</h4>
-                <p className="text-secondary-text text-[13px] leading-relaxed">Your personal academic assistant 24/7.</p>
-              </motion.div>
+                <h4 className="text-primary-text font-medium text-[14px] sm:text-[15px] mb-1 sm:mb-2">AI Tutor</h4>
+                <p className="text-secondary-text text-[12px] sm:text-[13px] leading-relaxed">Your personal academic assistant 24/7.</p>
+              </div>
 
               {/* Image Solver */}
-              <motion.div 
-                whileHover={{ y: -4, borderColor: "rgba(245,158,11,0.3)" }}
-                className="bg-[#120e0a] border border-[#1e1f2e] rounded-[20px] p-5 cursor-pointer flex flex-col transition-all duration-300"
-              >
-                <div className="w-11 h-11 rounded-[12px] bg-[#78350f] text-[#fcd34d] flex items-center justify-center mb-4 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-                  <ImageIcon className="w-5 h-5" />
+              <div className="bg-[#120e0a] border border-[#1e1f2e] rounded-[16px] sm:rounded-[20px] p-4 sm:p-5 cursor-pointer flex flex-col transition-all duration-200 hover:border-amber-500/30">
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] sm:rounded-[12px] bg-[#78350f] text-[#fcd34d] flex items-center justify-center mb-3 sm:mb-4">
+                  <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <h4 className="text-primary-text font-medium text-[15px] mb-2">Image Solver</h4>
-                <p className="text-secondary-text text-[13px] leading-relaxed">Snap your assignment and get step-by-step solutions.</p>
-              </motion.div>
+                <h4 className="text-primary-text font-medium text-[14px] sm:text-[15px] mb-1 sm:mb-2">Image Solver</h4>
+                <p className="text-secondary-text text-[12px] sm:text-[13px] leading-relaxed">Snap your assignment and get step-by-step solutions.</p>
+              </div>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Floating Accuracy Badge */}
-      <motion.div
-        style={{ x: parallaxX, y: parallaxY }}
-        animate={{ y: [-3, 3, -3], rotate: [1, -1, 1] }}
-        transition={{ duration: 6.2, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-        className="absolute -top-10 -right-4 lg:-right-10 z-20 bg-[#06070a]/95 backdrop-blur-xl border border-[#047857]/40 rounded-[20px] p-5 px-8 shadow-[0_20px_40px_rgba(0,0,0,0.6),0_0_20px_rgba(16,185,129,0.1)] scale-90 sm:scale-100 origin-top-right"
-      >
-        <div className="text-[#34d399] font-bold text-[32px] tracking-tight leading-none mb-1 text-center">95%</div>
-        <div className="text-[#34d399] text-[13px] font-medium tracking-wide text-center">Accuracy</div>
-      </motion.div>
+      {/* Floating Badges - Only rendered on min md screens to avoid clutter and mobile reflows */}
+      {!isMobile && (
+        <>
+          {/* Floating Accuracy Badge */}
+          <div className="absolute -top-8 -right-4 lg:-right-8 z-20 bg-[#06070a]/95 border border-[#047857]/40 rounded-[18px] p-4 px-6 shadow-xl origin-top-right scale-90 lg:scale-100 gpu-accelerated">
+            <div className="text-[#34d399] font-bold text-[28px] lg:text-[32px] tracking-tight leading-none mb-1 text-center">95%</div>
+            <div className="text-[#34d399] text-[12px] lg:text-[13px] font-medium tracking-wide text-center">Accuracy</div>
+          </div>
 
-      {/* Floating Upload Card (Bottom Left) */}
-      <motion.div
-        style={{ x: parallaxXReverse, y: parallaxYReverse }}
-        animate={{ y: [4, -4, 4], rotate: [-2, -1, -2] }}
-        transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
-        className="absolute -bottom-8 -left-6 lg:-left-12 z-20 w-[260px] bg-[#0A0B10]/95 backdrop-blur-xl border border-[#1e1f2e] rounded-[24px] p-4 shadow-[0_30px_60px_rgba(0,0,0,0.7)] transform -rotate-3 scale-[0.75] sm:scale-100 origin-bottom-left"
-      >
-        <div className="flex items-center gap-3 mb-3 p-3 bg-[#11131a] rounded-[16px] border border-divider cursor-pointer">
-           <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-red-400">
-             <FileText className="w-5 h-5" />
-           </div>
-           <div>
-             <div className="text-primary-text text-[14px] font-medium leading-tight mb-0.5">Lecture.pdf</div>
-             <div className="text-secondary-text text-[12px]">2.4 MB • PDF</div>
-           </div>
-        </div>
-        <div className="border border-dashed border-[#2a2b36] rounded-[16px] p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-white/[0.01]">
-          <Clock className="w-4 h-4 text-primary-text/30" />
-          <div className="text-secondary-text text-[12px] text-center leading-relaxed">Drop your files here<br/>or click to upload</div>
-        </div>
-      </motion.div>
+          {/* Floating Upload Card (Bottom Left) */}
+          <div className="absolute -bottom-6 -left-4 lg:-left-8 z-20 w-[240px] lg:w-[260px] bg-[#0A0B10]/95 border border-[#1e1f2e] rounded-[20px] p-3.5 shadow-2xl transform -rotate-2 scale-90 lg:scale-100 origin-bottom-left gpu-accelerated">
+            <div className="flex items-center gap-3 mb-2.5 p-2.5 bg-[#11131a] rounded-[14px] border border-divider">
+               <div className="w-9 h-9 bg-red-500/10 rounded-lg flex items-center justify-center text-red-400">
+                 <FileText className="w-4 h-4" />
+               </div>
+               <div>
+                 <div className="text-primary-text text-[13px] font-medium leading-tight mb-0.5">Lecture.pdf</div>
+                 <div className="text-secondary-text text-[11px]">2.4 MB • PDF</div>
+               </div>
+            </div>
+            <div className="border border-dashed border-[#2a2b36] rounded-[14px] p-3 flex flex-col items-center justify-center gap-1.5 bg-white/[0.01]">
+              <Clock className="w-3.5 h-3.5 text-primary-text/30" />
+              <div className="text-secondary-text text-[11px] text-center">Drop your files here</div>
+            </div>
+          </div>
 
-      {/* Floating AI Card (Bottom Right) */}
-      <motion.div
-        style={{ x: parallaxX, y: parallaxYReverse }}
-        animate={{ y: [-4, 4, -4], rotate: [4, 5, 4] }}
-        transition={{ duration: 5.8, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
-        className="absolute -bottom-6 -right-4 lg:-right-8 z-20 w-[170px] h-[170px] bg-gradient-to-b from-[#181324] to-[#0A0B10] backdrop-blur-xl border border-[#8b5cf6]/30 rounded-[24px] p-5 shadow-[0_30px_60px_rgba(0,0,0,0.7),0_0_30px_rgba(139,92,246,0.15)] flex flex-col items-center justify-center text-center transform rotate-6 scale-[0.8] sm:scale-100 origin-bottom-right"
-      >
-        <div className="w-14 h-14 rounded-full bg-[#8b5cf6] flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.6)] mb-3">
-          <span className="text-primary-text font-bold text-[18px]">AI</span>
-        </div>
-        <div className="text-primary-text text-[14px] font-medium leading-tight">
-          <span className="text-secondary-text text-[12px] font-normal">Always here<br/>to help</span>
-        </div>
-      </motion.div>
+          {/* Floating AI Card (Bottom Right) */}
+          <div className="absolute -bottom-4 -right-2 lg:-right-6 z-20 w-[150px] lg:w-[160px] h-[150px] lg:h-[160px] bg-gradient-to-b from-[#181324] to-[#0A0B10] border border-[#8b5cf6]/30 rounded-[20px] p-4 shadow-2xl flex flex-col items-center justify-center text-center transform rotate-4 scale-90 lg:scale-100 origin-bottom-right gpu-accelerated">
+            <div className="w-12 h-12 rounded-full bg-[#8b5cf6] flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.5)] mb-2.5">
+              <span className="text-primary-text font-bold text-[16px]">AI</span>
+            </div>
+            <div className="text-primary-text text-[13px] font-medium leading-tight">
+              <span className="text-secondary-text text-[11px] font-normal">Always here<br/>to help</span>
+            </div>
+          </div>
+        </>
+      )}
 
     </motion.div>
   );
-};
+});
+
+HeroDashboard.displayName = 'HeroDashboard';
+
 
