@@ -1,103 +1,185 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Shield, User, LogOut, ChevronRight } from 'lucide-react';
+import { Bell, User, Check, Save, Sparkles } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+
 
 export const SettingsView = () => {
   const { user } = useAuth();
+  
+  // Account Profile State
+  const [fullName, setFullName] = useState('Student User');
+  const [university, setUniversity] = useState('UNIZIK');
+  const [studyLevel, setStudyLevel] = useState('Undergraduate (100 Level)');
+  const [learningStyle, setLearningStyle] = useState('Visual & Active Recall');
+  const [isSaved, setIsSaved] = useState(false);
+
+  // App Toggles
   const [settings, setSettings] = useState({
     emailNotifications: true,
-    pushNotifications: false,
-    darkMode: true,
+    pushNotifications: true,
     aiSuggestions: true,
     dataSharing: false,
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem('prime_settings');
-    if (saved) {
-      setSettings(JSON.parse(saved));
+    const savedProfile = localStorage.getItem('prime_user_profile_v2');
+    if (savedProfile) {
+      try {
+        const parsed = JSON.parse(savedProfile);
+        setFullName(parsed.fullName || 'Student User');
+        setUniversity(parsed.university || 'UNIZIK');
+        setStudyLevel(parsed.studyLevel || 'Undergraduate (100 Level)');
+        setLearningStyle(parsed.learningStyle || 'Visual & Active Recall');
+      } catch (e) {
+        console.error("Failed to load user profile:", e);
+      }
+    } else if (user?.email) {
+      setFullName(user.email.split('@')[0]);
     }
-  }, []);
+
+    const savedSettings = localStorage.getItem('prime_settings');
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings));
+      } catch (e) {
+        console.error("Failed to load settings:", e);
+      }
+    }
+  }, [user]);
+
+  const handleSaveProfile = () => {
+    const profile = { fullName, university, studyLevel, learningStyle };
+    localStorage.setItem('prime_user_profile_v2', JSON.stringify(profile));
+    setIsSaved(true);
+    setTimeout(() => setIsSaved(false), 2000);
+  };
 
   const toggleSetting = (key: keyof typeof settings) => {
     const newSettings = { ...settings, [key]: !settings[key] };
     setSettings(newSettings);
     localStorage.setItem('prime_settings', JSON.stringify(newSettings));
-    
-    if (key === 'darkMode') {
-      if (newSettings.darkMode) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    }
   };
 
   return (
-    <div className="flex-1 w-full max-w-4xl mx-auto px-4 lg:px-8 py-8 h-full overflow-y-auto scrollbar-hide">
-      <div className="mb-8 shrink-0">
-        <h2 className="text-3xl font-bold text-primary-text mb-2 tracking-tight">Settings</h2>
-        <p className="text-secondary-text text-[15px]">Manage your account preferences, notifications, and application settings.</p>
+    <div className="flex-1 w-full max-w-4xl mx-auto px-4 lg:px-8 py-6 h-full overflow-y-auto scrollbar-hide">
+      <div className="mb-6 shrink-0 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-primary-text mb-1 tracking-tight flex items-center gap-2">
+            <User className="w-6 h-6 text-primary" /> Profile & Account Settings
+          </h2>
+          <p className="text-secondary-text text-[14px]">Manage student profile details, study level preferences, and application notifications.</p>
+        </div>
+
+        <button
+          onClick={handleSaveProfile}
+          className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-2"
+        >
+          {isSaved ? <Check className="w-4 h-4 text-emerald-400" /> : <Save className="w-4 h-4" />}
+          <span>{isSaved ? 'Saved!' : 'Save Profile'}</span>
+        </button>
       </div>
 
       <div className="space-y-6 pb-20">
         
-        {/* Profile Section */}
-        <div className="p-6 md:p-8 rounded-[24px] bg-surface border border-divider shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-text text-2xl font-bold shadow-inner">
-              {user?.email?.charAt(0).toUpperCase() || 'S'}
+        {/* Profile Card */}
+        <div className="p-6 rounded-[24px] bg-surface border border-divider shadow-lg space-y-6">
+          <div className="flex items-center gap-4 border-b border-divider pb-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-inner shrink-0">
+              {fullName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h3 className="text-xl font-bold text-primary-text">{user?.email?.split('@')[0] || 'Student User'}</h3>
-              <p className="text-secondary-text">{user?.email || 'student@university.edu'}</p>
+              <h3 className="text-lg font-bold text-primary-text">{fullName}</h3>
+              <p className="text-xs text-secondary-text">{user?.email || 'student@university.edu'}</p>
             </div>
           </div>
-          <button className="px-5 py-2.5 bg-card-hover hover:bg-card-hover text-primary-text rounded-xl font-medium transition-colors text-sm border border-divider">
-            Edit Profile
-          </button>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-secondary-text uppercase tracking-wider mb-1 block">Full Name</label>
+              <input 
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-background border border-divider text-xs sm:text-sm text-primary-text outline-none focus:border-primary/50"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-secondary-text uppercase tracking-wider mb-1 block">University / Institution</label>
+              <select
+                value={university}
+                onChange={(e) => setUniversity(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-background border border-divider text-xs sm:text-sm text-primary-text outline-none focus:border-primary/50"
+              >
+                {['UNIZIK', 'UNILAG', 'OAU', 'UI', 'ABU', 'UNN', 'Other Institution'].map(u => (
+                  <option key={u} value={u} className="bg-surface text-primary-text">{u}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-secondary-text uppercase tracking-wider mb-1 block">Study Level</label>
+              <select
+                value={studyLevel}
+                onChange={(e) => setStudyLevel(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-background border border-divider text-xs sm:text-sm text-primary-text outline-none focus:border-primary/50"
+              >
+                {[
+                  'Undergraduate (100 Level)',
+                  'Undergraduate (200 Level)',
+                  'Undergraduate (300 Level)',
+                  'Undergraduate (400 Level)',
+                  'Postgraduate / Masters',
+                  'High School / Secondary'
+                ].map(l => (
+                  <option key={l} value={l} className="bg-surface text-primary-text">{l}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-secondary-text uppercase tracking-wider mb-1 block">Preferred Learning Style</label>
+              <select
+                value={learningStyle}
+                onChange={(e) => setLearningStyle(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-background border border-divider text-xs sm:text-sm text-primary-text outline-none focus:border-primary/50"
+              >
+                {[
+                  'Visual & Active Recall',
+                  'Step-by-Step Problem Solving',
+                  'Concise Bullet Summaries',
+                  'Interactive Quizzes & Practice'
+                ].map(s => (
+                  <option key={s} value={s} className="bg-surface text-primary-text">{s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Settings Grid */}
+        {/* Preferences & Notifications Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
           {/* Preferences */}
-          <div className="p-6 rounded-[24px] bg-surface border border-divider shadow-lg">
-            <h3 className="text-lg font-bold text-primary-text mb-6 flex items-center gap-2">
-              <User className="w-5 h-5 text-primary" />
-              Preferences
+          <div className="p-6 rounded-[24px] bg-surface border border-divider shadow-lg space-y-4">
+            <h3 className="text-base font-bold text-primary-text flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> AI Preferences
             </h3>
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-primary-text font-medium mb-1">Dark Mode</h4>
-                  <p className="text-secondary-text text-xs">Use dark theme across the app</p>
-                </div>
-                <button 
-                  onClick={() => toggleSetting('darkMode')}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${settings.darkMode ? 'bg-primary' : 'bg-card-hover'}`}
-                >
-                  <motion.div 
-                    layout 
-                    className="w-4 h-4 rounded-full bg-white absolute top-1 left-1" 
-                    animate={{ x: settings.darkMode ? 24 : 0 }} 
-                  />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-primary-text font-medium mb-1">AI Suggestions</h4>
-                  <p className="text-secondary-text text-xs">Smart autocomplete and study tips</p>
+                  <h4 className="text-xs font-bold text-primary-text mb-0.5">Smart AI Autocomplete</h4>
+                  <p className="text-secondary-text text-[11px]">Inline prompt suggestions & automatic study tips</p>
                 </div>
                 <button 
                   onClick={() => toggleSetting('aiSuggestions')}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${settings.aiSuggestions ? 'bg-primary' : 'bg-card-hover'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${settings.aiSuggestions ? 'bg-primary' : 'bg-card-hover'}`}
                 >
                   <motion.div 
                     layout 
                     className="w-4 h-4 rounded-full bg-white absolute top-1 left-1" 
-                    animate={{ x: settings.aiSuggestions ? 24 : 0 }} 
+                    animate={{ x: settings.aiSuggestions ? 20 : 0 }} 
                   />
                 </button>
               </div>
@@ -105,89 +187,51 @@ export const SettingsView = () => {
           </div>
 
           {/* Notifications */}
-          <div className="p-6 rounded-[24px] bg-surface border border-divider shadow-lg">
-            <h3 className="text-lg font-bold text-primary-text mb-6 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-accent" />
-              Notifications
+          <div className="p-6 rounded-[24px] bg-surface border border-divider shadow-lg space-y-4">
+            <h3 className="text-base font-bold text-primary-text flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-400" /> Notifications
             </h3>
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-primary-text font-medium mb-1">Email Notifications</h4>
-                  <p className="text-secondary-text text-xs">Weekly study reports and updates</p>
+                  <h4 className="text-xs font-bold text-primary-text mb-0.5">Email Summaries</h4>
+                  <p className="text-secondary-text text-[11px]">Weekly study performance reports</p>
                 </div>
                 <button 
                   onClick={() => toggleSetting('emailNotifications')}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${settings.emailNotifications ? 'bg-primary' : 'bg-card-hover'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${settings.emailNotifications ? 'bg-primary' : 'bg-card-hover'}`}
                 >
                   <motion.div 
                     layout 
                     className="w-4 h-4 rounded-full bg-white absolute top-1 left-1" 
-                    animate={{ x: settings.emailNotifications ? 24 : 0 }} 
+                    animate={{ x: settings.emailNotifications ? 20 : 0 }} 
                   />
                 </button>
               </div>
+
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-primary-text font-medium mb-1">Push Notifications</h4>
-                  <p className="text-secondary-text text-xs">Study session reminders</p>
+                  <h4 className="text-xs font-bold text-primary-text mb-0.5">Study Reminders</h4>
+                  <p className="text-secondary-text text-[11px]">Exam countdown & study session alerts</p>
                 </div>
                 <button 
                   onClick={() => toggleSetting('pushNotifications')}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${settings.pushNotifications ? 'bg-primary' : 'bg-card-hover'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${settings.pushNotifications ? 'bg-primary' : 'bg-card-hover'}`}
                 >
                   <motion.div 
                     layout 
                     className="w-4 h-4 rounded-full bg-white absolute top-1 left-1" 
-                    animate={{ x: settings.pushNotifications ? 24 : 0 }} 
+                    animate={{ x: settings.pushNotifications ? 20 : 0 }} 
                   />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Privacy & Data */}
-          <div className="p-6 rounded-[24px] bg-surface border border-divider shadow-lg md:col-span-2">
-            <h3 className="text-lg font-bold text-primary-text mb-6 flex items-center gap-2">
-              <Shield className="w-5 h-5 text-emerald-400" />
-              Privacy & Data
-            </h3>
-            <div className="flex items-center justify-between pb-5 border-b border-divider mb-5">
-              <div>
-                <h4 className="text-primary-text font-medium mb-1">Data Sharing</h4>
-                <p className="text-secondary-text text-sm">Help improve Prime AI by sharing anonymous usage data</p>
-              </div>
-              <button 
-                onClick={() => toggleSetting('dataSharing')}
-                className={`w-12 h-6 rounded-full transition-colors relative ${settings.dataSharing ? 'bg-primary' : 'bg-card-hover'}`}
-              >
-                <motion.div 
-                  layout 
-                  className="w-4 h-4 rounded-full bg-white absolute top-1 left-1" 
-                  animate={{ x: settings.dataSharing ? 24 : 0 }} 
-                />
-              </button>
-            </div>
-            <button className="flex items-center justify-between w-full group">
-              <div className="text-left">
-                <h4 className="text-primary-text font-medium group-hover:text-primary transition-colors">Export Study Data</h4>
-                <p className="text-secondary-text text-sm">Download all your generated notes and flashcards</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-primary-text/20 group-hover:text-primary transition-colors" />
-            </button>
-          </div>
-
-        </div>
-
-        {/* Danger Zone */}
-        <div className="mt-8 flex justify-center">
-          <button className="flex items-center gap-2 text-red-400/70 hover:text-red-400 font-medium transition-colors px-4 py-2 hover:bg-red-400/10 rounded-lg">
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
         </div>
 
       </div>
     </div>
   );
 };
+
