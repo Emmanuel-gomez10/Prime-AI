@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 export interface User {
   id: string;
@@ -36,102 +37,163 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check localStorage for an existing session on load
-    const storedSession = localStorage.getItem('mock_session');
-    if (storedSession) {
-      const parsedSession: Session = JSON.parse(storedSession);
-      setSession(parsedSession);
-      setUser(parsedSession.user);
-    } else {
-      // AUTOLOGIN FOR LOCAL DEMONSTRATION
-      const mockUser: User = { 
-        id: 'mock-id-123', 
-        email: 'student@example.com', 
-        user_metadata: { full_name: 'Demo Student' } 
-      };
-      const mockSession: Session = { access_token: 'mock-token', user: mockUser };
-      setSession(mockSession);
-      setUser(mockUser);
-      localStorage.setItem('mock_session', JSON.stringify(mockSession));
-    }
-    setLoading(false);
-  }, []);
-
-  const login = async (email: string, _password: string) => {
-    // Mock login: always succeeds
-    const mockUser: User = { id: 'mock-id-123', email };
-    const mockSession: Session = { access_token: 'mock-token', user: mockUser };
-    
-    setSession(mockSession);
-    setUser(mockUser);
-    localStorage.setItem('mock_session', JSON.stringify(mockSession));
-    
-    return { error: null };
+  const isConfigured = () => {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    return Boolean(url && !url.includes('placeholder') && !url.includes('your-project'));
   };
 
-  const signup = async (email: string, _password: string, profileData: { fullName: string; university?: string }) => {
-    // Mock signup: always succeeds
-    const mockUser: User = { 
-      id: 'mock-id-123', 
-      email, 
-      user_metadata: { full_name: profileData.fullName, university: profileData.university } 
-    };
-    const mockSession: Session = { access_token: 'mock-token', user: mockUser };
-    
-    setSession(mockSession);
-    setUser(mockUser);
-    localStorage.setItem('mock_session', JSON.stringify(mockSession));
+  useEffect(() => {
+    if (isConfigured()) {
+      // Real Supabase Auth listener
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setSession(session as any);
+          setUser(session.user as any);
+        }
+        setLoading(false);
+      });
 
-    return { error: null };
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session as any);
+        setUser(session?.user as any || null);
+        setLoading(false);
+      });
+
+      return () => subscription.unsubscribe();
+    } else {
+      // Local development fallback session
+      const storedSession = localStorage.getItem('prime_auth_session');
+      if (storedSession) {
+        try {
+          const parsed = JSON.parse(storedSession);
+          setSession(parsed);
+          setUser(parsed.user);
+        } catch (e) {
+          console.error("Failed to parse stored session:", e);
+        }
+      } else {
+        const mockUser: User = { 
+          id: 'local-student-001', 
+          email: 'student@university.edu', 
+          user_metadata: { full_name: 'Demo Student', university: 'UNIZIK' } 
+        };
+        const mockSession: Session = { access_token: 'local-demo-token', user: mockUser };
+        setSession(mockSession);
+        setUser(mockUser);
+        localStorage.setItem('prime_auth_session', JSON.stringify(mockSession));
+      }
+      setLoading(false);
+    }
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    if (isConfigured()) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error };
+    } else {
+      const localUser: User = { id: 'local-student-001', email, user_metadata: { full_name: email.split('@')[0] } };
+      const localSession: Session = { access_token: 'local-token', user: localUser };
+      setSession(localSession);
+      setUser(localUser);
+      localStorage.setItem('prime_auth_session', JSON.stringify(localSession));
+      return { error: null };
+    }
+  };
+
+  const signup = async (email: string, password: string, profileData: { fullName: string; university?: string }) => {
+    if (isConfigured()) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: profileData.fullName,
+            university: profileData.university,
+          },
+        },
+      });
+      return { error };
+    } else {
+      const localUser: User = { 
+        id: 'local-student-001', 
+        email, 
+        user_metadata: { full_name: profileData.fullName, university: profileData.university } 
+      };
+      const localSession: Session = { access_token: 'local-token', user: localUser };
+      setSession(localSession);
+      setUser(localUser);
+      localStorage.setItem('prime_auth_session', JSON.stringify(localSession));
+      return { error: null };
+    }
   };
 
   const logout = async () => {
-    setSession(null);
-    setUser(null);
-    localStorage.removeItem('mock_session');
+    if (isConfigured()) {
+      const { error } = await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+      return { error };
+    } else {
+      setSession(null);
+      setUser(null);
+      localStorage.removeItem('prime_auth_session');
+      return { error: null };
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    if (isConfigured()) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      return { error };
+    }
     return { error: null };
   };
 
-  const resetPassword = async (_email: string) => {
-    // Mock reset: does nothing successfully
-    return { error: null };
-  };
-
-  const updatePassword = async (_password: string) => {
-    // Mock update: does nothing successfully
+  const updatePassword = async (password: string) => {
+    if (isConfigured()) {
+      const { error } = await supabase.auth.updateUser({ password });
+      return { error };
+    }
     return { error: null };
   };
 
   const updateProfile = async (data: any) => {
-    if (!user) return { error: new Error('Not authenticated') };
-    // Merge data into current mock user
-    const updatedUser = { ...user, user_metadata: { ...user?.user_metadata, ...data } };
-    const updatedSession = { ...session!, user: updatedUser };
-    
-    setUser(updatedUser);
-    setSession(updatedSession);
-    localStorage.setItem('mock_session', JSON.stringify(updatedSession));
-    
-    return { error: null };
+    if (isConfigured()) {
+      const { error } = await supabase.auth.updateUser({ data });
+      return { error };
+    } else if (user) {
+      const updatedUser = { ...user, user_metadata: { ...user.user_metadata, ...data } };
+      const updatedSession = { ...session!, user: updatedUser };
+      setUser(updatedUser);
+      setSession(updatedSession);
+      localStorage.setItem('prime_auth_session', JSON.stringify(updatedSession));
+      return { error: null };
+    }
+    return { error: new Error('Not authenticated') };
   };
 
   const refreshSession = async () => {
-    // Re-read from local storage if needed
-    const storedSession = localStorage.getItem('mock_session');
-    if (storedSession) {
-      const parsedSession: Session = JSON.parse(storedSession);
-      setSession(parsedSession);
-      setUser(parsedSession.user);
-    } else {
-      setSession(null);
-      setUser(null);
+    if (isConfigured()) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setSession(session as any);
+        setUser(session.user as any);
+      }
     }
   };
 
   const signInWithGoogle = async () => {
-    // Mock Google sign in
-    return login('student@google.com', 'password');
+    if (isConfigured()) {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      });
+      return { error };
+    } else {
+      return login('google.student@university.edu', 'password');
+    }
   };
 
   const value = {
@@ -145,7 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updatePassword,
     updateProfile,
     refreshSession,
-    signInWithGoogle
+    signInWithGoogle,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -158,3 +220,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
