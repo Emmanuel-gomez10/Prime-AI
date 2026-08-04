@@ -36,24 +36,29 @@ export const SignUp = () => {
     resolver: zodResolver(signUpSchema)
   });
 
-  const onSubmit = async (data: SignUpFormData) => {
+  const onSubmit = async (formData: SignUpFormData) => {
     if (!agreedToTerms) {
       toast.error('You must agree to the Terms of Service and Privacy Policy');
       return;
     }
 
     setIsSubmitting(true);
-    const { error } = await signup(data.email, data.password, {
-      fullName: data.fullName,
-      university: data.university,
+    const { data, error } = await signup(formData.email, formData.password, {
+      fullName: formData.fullName,
+      university: formData.university,
     });
     setIsSubmitting(false);
 
     if (error) {
       toast.error(error.message || 'Error creating account');
     } else {
-      toast.success('Account created successfully!');
-      navigate('/dashboard');
+      if (data?.session) {
+        toast.success('Welcome to Prime AI!');
+        navigate('/dashboard');
+      } else {
+        toast.success('Account created! Please check your email to verify your account.');
+        navigate('/verify-email', { state: { email: formData.email } });
+      }
     }
   };
 

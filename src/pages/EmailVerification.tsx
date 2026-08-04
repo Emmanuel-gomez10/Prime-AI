@@ -1,8 +1,32 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Layers, MailCheck, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Layers, MailCheck, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 
 export const EmailVerification = () => {
+  const location = useLocation();
+  const { resendVerificationEmail } = useAuth();
+  const [isResending, setIsResending] = useState(false);
+  const email = (location.state as any)?.email || '';
+
+  const handleResend = async () => {
+    if (!email) {
+      toast.error('No email address provided. Please return to login.');
+      return;
+    }
+    setIsResending(true);
+    const { error } = await resendVerificationEmail(email);
+    setIsResending(false);
+
+    if (error) {
+      toast.error(error.message || 'Failed to resend verification email');
+    } else {
+      toast.success('Verification email sent!');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#070816] text-primary-text flex items-center justify-center font-sans selection:bg-primary/30 p-6">
       
@@ -42,9 +66,20 @@ export const EmailVerification = () => {
 
           <h2 className="text-3xl font-bold mb-4 tracking-tight">Check your email</h2>
           
-          <p className="text-secondary-text text-sm leading-relaxed mb-8 px-4">
-            We've sent a verification link to your email address. Please click the link to verify your account and continue to your dashboard.
+          <p className="text-secondary-text text-sm leading-relaxed mb-6 px-4">
+            We've sent a verification link to {email ? <strong className="text-primary-text">{email}</strong> : 'your email address'}. Please click the link to verify your account and continue to your dashboard.
           </p>
+
+          {email && (
+            <button
+              onClick={handleResend}
+              disabled={isResending}
+              className="mb-6 px-4 py-2 rounded-xl bg-card-hover border border-divider hover:border-white/20 text-xs font-semibold text-primary-text flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isResending ? 'animate-spin' : ''}`} />
+              {isResending ? 'Resending...' : 'Resend Verification Email'}
+            </button>
+          )}
 
           <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
 
@@ -61,3 +96,4 @@ export const EmailVerification = () => {
     </div>
   );
 };
+
