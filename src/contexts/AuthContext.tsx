@@ -45,11 +45,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isConfigured()) {
       // Real Supabase Auth listener
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          console.error("Supabase getSession error:", error);
+        }
         if (session) {
           setSession(session as any);
           setUser(session.user as any);
         }
+        setLoading(false);
+      }).catch(err => {
+        console.error("Failed to fetch Supabase session:", err);
         setLoading(false);
       });
 
@@ -59,7 +65,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       });
 
-      return () => subscription.unsubscribe();
+      // Fallback timer so loading never hangs infinitely
+      const timeout = setTimeout(() => {
+        setLoading(false);
+      }, 3000);
+
+      return () => {
+        subscription.unsubscribe();
+        clearTimeout(timeout);
+      };
     } else {
       // Local development fallback session
       const storedSession = localStorage.getItem('prime_auth_session');
