@@ -2,7 +2,7 @@ import { Menu, Search, Flame } from 'lucide-react';
 
 export const TopBar = ({ onMenuClick }: { onMenuClick: () => void }) => {
   return (
-    <div className="h-[72px] w-full bg-[#05050A]/80 backdrop-blur-xl border-b border-divider flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
+    <div className="h-[72px] w-full bg-[#05050A]/80 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
       
       <div className="flex items-center gap-4 flex-1">
         <button onClick={onMenuClick} className="lg:hidden text-secondary-text hover:text-primary-text p-2">

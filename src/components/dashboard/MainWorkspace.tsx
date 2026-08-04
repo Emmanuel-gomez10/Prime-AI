@@ -18,6 +18,7 @@ import { SettingsView } from './views/SettingsView';
 import { EssayWriterView } from './views/EssayWriterView';
 import { QuizGeneratorView } from './views/QuizGeneratorView';
 import { PastQuestionsView } from './views/PastQuestionsView';
+import { ProfileView } from './views/ProfileView';
 
 const PILL_BUTTONS = [
   { icon: BookOpen, label: 'Explain Concept', prompt: 'Explain Quantum Physics in simple terms' },
@@ -83,8 +84,12 @@ export const MainWorkspace = () => {
     <div className="h-full flex flex-col relative overflow-hidden">
       
       {/* Dynamic Content Area */}
-      <div className={`flex-1 w-full mx-auto px-4 lg:px-8 overflow-y-auto scrollbar-hide flex flex-col ${
-        activeView === 'home' ? 'max-w-4xl items-center justify-center py-8 lg:py-12' : 'max-w-4xl pt-6 pb-44'
+      <div className={`flex-1 w-full overflow-y-auto scroll-smooth flex flex-col ${
+        activeView === 'home' 
+          ? 'max-w-4xl mx-auto px-4 lg:px-8 py-8 lg:py-12 items-center justify-center scrollbar-hide' 
+          : activeView === 'chat' 
+            ? 'px-4 sm:px-8 lg:px-12 pt-6 pb-36 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent' 
+            : 'max-w-4xl mx-auto px-4 lg:px-8 pt-6 pb-24 scrollbar-hide'
       }`}>
         
         {activeView === 'home' ? (
@@ -115,7 +120,7 @@ export const MainWorkspace = () => {
                     sendMessage(btn.prompt);
                   }}
                   whileHover={{ y: -1, backgroundColor: "rgba(255,255,255,0.08)" }}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.03] border border-divider hover:border-primary/40 transition-all shadow-sm group"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] hover:border-primary/40 transition-all shadow-sm group"
                 >
                   <btn.icon className="w-3.5 h-3.5 text-secondary-text group-hover:text-primary transition-colors" />
                   <span className="text-primary-text text-[13px] font-medium">{btn.label}</span>
@@ -130,7 +135,7 @@ export const MainWorkspace = () => {
                   key={idx}
                   onClick={() => setActiveView(card.view as any)}
                   whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.04)" }}
-                  className="flex flex-col text-left p-5 rounded-[20px] bg-background border border-divider hover:border-primary/30 transition-all group shadow-[0_4px_20px_rgba(0,0,0,0.2)] backdrop-blur-xl min-h-[140px]"
+                  className="flex flex-col text-left p-5 rounded-[20px] bg-background border border-white/[0.08] hover:border-primary/30 transition-all group shadow-[0_4px_20px_rgba(0,0,0,0.2)] backdrop-blur-xl min-h-[140px]"
                 >
                   <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-inner`}>
                     <card.icon className={`w-5 h-5 ${card.color}`} />
@@ -142,9 +147,9 @@ export const MainWorkspace = () => {
             </div>
           </>
         ) : activeView === 'chat' ? (
-          <div className="flex-1 flex flex-col w-full h-full">
+          <div className="flex-1 flex flex-col w-full max-w-5xl mx-auto min-h-full">
             {messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 my-auto">
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-4 shadow-[0_0_30px_rgba(168,85,247,0.2)]">
                   <HelpCircle className="w-7 h-7" />
                 </div>
@@ -152,78 +157,80 @@ export const MainWorkspace = () => {
                 <p className="text-secondary-text text-sm max-w-md mb-6">Ask any academic question, upload lecture materials, or request step-by-step problem solutions.</p>
               </div>
             ) : (
-              messages.map((msg, idx) => (
-                <div key={msg.id} className={`flex flex-col mb-6 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  {/* Attachments preview */}
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {msg.attachments.map((att, i) => (
-                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface border border-divider text-xs text-primary-text">
-                          <Paperclip className="w-3.5 h-3.5 text-primary" />
-                          <span className="font-medium truncate max-w-[180px]">{att.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Message Bubble */}
-                  <div className={`group relative rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed max-w-3xl shadow-sm ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-text rounded-br-none'
-                      : 'bg-surface/80 border border-divider text-primary-text rounded-bl-none backdrop-blur-md'
-                  }`}>
-                    {msg.role === 'model' ? (
-                      <div className="prose prose-invert max-w-none text-primary-text text-[15px]">
-                        <Markdown>{msg.content || '...'}</Markdown>
+              <div className="space-y-6 w-full pb-6">
+                {messages.map((msg, idx) => (
+                  <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    {/* Attachments preview */}
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {msg.attachments.map((att, i) => (
+                          <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface border border-white/[0.08] text-xs text-primary-text">
+                            <Paperclip className="w-3.5 h-3.5 text-primary" />
+                            <span className="font-medium truncate max-w-[180px]">{att.name}</span>
+                          </div>
+                        ))}
                       </div>
-                    ) : (
-                      <span className="whitespace-pre-wrap">{msg.content}</span>
                     )}
 
-                    {/* Action Bar */}
-                    <div className={`mt-2 flex items-center gap-3 pt-2 border-t border-white/10 text-xs text-secondary-text ${
-                      msg.role === 'user' ? 'justify-end text-primary-text/70' : 'justify-between'
+                    {/* Message Bubble */}
+                    <div className={`group relative rounded-2xl px-6 py-4 text-[15px] leading-relaxed w-full sm:max-w-[85%] lg:max-w-[88%] shadow-sm ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-text rounded-br-none ml-auto'
+                        : 'bg-surface/80 border border-white/[0.08] text-primary-text rounded-bl-none backdrop-blur-md'
                     }`}>
-                      <span className="text-[11px]">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      {msg.role === 'model' ? (
+                        <div className="prose prose-invert max-w-none text-primary-text text-[15px] leading-relaxed">
+                          <Markdown>{msg.content || '...'}</Markdown>
+                        </div>
+                      ) : (
+                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                      )}
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => copyToClipboard(msg.content, msg.id)}
-                          className="hover:text-primary-text p-1 rounded transition-colors"
-                          title="Copy text"
-                        >
-                          {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                        
-                        {msg.role === 'model' && idx === messages.length - 1 && (
+                      {/* Action Bar */}
+                      <div className={`mt-2.5 flex items-center gap-3 pt-2 border-t border-white/[0.08] text-xs text-secondary-text ${
+                        msg.role === 'user' ? 'justify-end text-primary-text/70' : 'justify-between'
+                      }`}>
+                        <span className="text-[11px]">
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={regenerateLastMessage}
+                            onClick={() => copyToClipboard(msg.content, msg.id)}
                             className="hover:text-primary-text p-1 rounded transition-colors"
-                            title="Regenerate response"
+                            title="Copy text"
                           >
-                            <RefreshCw className="w-3.5 h-3.5" />
+                            {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                           </button>
-                        )}
+                          
+                          {msg.role === 'model' && idx === messages.length - 1 && (
+                            <button
+                              onClick={regenerateLastMessage}
+                              className="hover:text-primary-text p-1 rounded transition-colors"
+                              title="Regenerate response"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
-                        <button
-                          onClick={() => deleteMessage(msg.id)}
-                          className="hover:text-red-400 p-1 rounded transition-colors"
-                          title="Delete message"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                          <button
+                            onClick={() => deleteMessage(msg.id)}
+                            className="hover:text-red-400 p-1 rounded transition-colors"
+                            title="Delete message"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
 
             {isTyping && (
               <div className="flex gap-4 mb-6 justify-start">
-                <div className="py-2 px-4 rounded-xl bg-surface border border-divider text-secondary-text flex items-center gap-2 h-10">
+                <div className="py-2 px-4 rounded-xl bg-surface border border-white/[0.08] text-secondary-text flex items-center gap-2 h-10">
                   <span className="text-xs font-medium">Prime AI is thinking</span>
                   <div className="flex items-center gap-1">
                     <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
@@ -233,7 +240,7 @@ export const MainWorkspace = () => {
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-4 shrink-0" />
           </div>
         ) : activeView === 'study-fetch' ? (
           <StudyFetchView />
@@ -253,12 +260,14 @@ export const MainWorkspace = () => {
           <ProgressView />
         ) : activeView === 'settings' ? (
           <SettingsView />
+        ) : activeView === 'profile' ? (
+          <ProfileView />
         ) : activeView === 'essay-writer' ? (
           <EssayWriterView />
         ) : (
           <PlaceholderView 
-            title={activeView.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} 
-            description={`The ${activeView.replace('-', ' ')} feature is currently under construction. Check back soon!`}
+            title={(activeView as string).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} 
+            description={`The ${(activeView as string).replace('-', ' ')} feature is currently under construction. Check back soon!`}
           />
         )}
       </div>
