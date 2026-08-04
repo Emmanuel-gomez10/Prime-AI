@@ -39,7 +39,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isConfigured = () => {
     const url = import.meta.env.VITE_SUPABASE_URL;
-    return Boolean(url && !url.includes('placeholder') && !url.includes('your-project'));
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!url || typeof url !== 'string' || !key || typeof key !== 'string') return false;
+    if (key.includes('placeholder') || key.includes('your-anon-key')) return false;
+    try {
+      const parsed = new URL(url.trim());
+      return (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+             !url.includes('placeholder') &&
+             !url.includes('your-project');
+    } catch {
+      return false;
+    }
   };
 
   useEffect(() => {

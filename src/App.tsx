@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
@@ -46,6 +46,9 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
           </Route>
+
+          {/* Catch-all fallback route to prevent 404 / white screen */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </BrowserRouter>
         {/* Toast Notifications */}
@@ -56,3 +59,4 @@ function App() {
 }
 
 export default App;
+
