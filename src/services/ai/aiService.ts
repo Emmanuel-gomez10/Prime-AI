@@ -32,14 +32,20 @@ export interface AIServiceResponseStream {
 class AIService {
   private static instance: AIService;
   private sdk: GoogleGenerativeAI | null = null;
+  private activeKey: string = '';
 
   private constructor() {
+    this.syncKey();
+  }
+
+  private syncKey(): boolean {
     const key = getApiKey();
-    if (key) {
+    if (key && key !== this.activeKey) {
+      this.activeKey = key;
       this.sdk = new GoogleGenerativeAI(key);
-    } else {
-      console.warn('[Prime AI] Warning: VITE_GEMINI_API_KEY is missing.');
+      return true;
     }
+    return Boolean(this.sdk);
   }
 
   public static getInstance(): AIService {
@@ -53,13 +59,16 @@ class AIService {
    * Executes AI streaming with automatic model fallback candidates.
    */
   public async generateStream(request: AIServiceRequest): Promise<AIServiceResponseStream> {
-    if (!this.sdk) {
-      const key = getApiKey();
-      if (key) {
-        this.sdk = new GoogleGenerativeAI(key);
-      } else {
-        throw new Error('Google Generative AI API key is missing. Please set VITE_GEMINI_API_KEY in your environment.');
-      }
+    const key = getApiKey();
+    if (!key) {
+      throw new Error(
+        'Google Generative AI API key is missing. Please add VITE_GEMINI_API_KEY in your Vercel Environment Variables or enter your API key in Settings.'
+      );
+    }
+
+    if (!this.sdk || this.activeKey !== key) {
+      this.activeKey = key;
+      this.sdk = new GoogleGenerativeAI(key);
     }
 
     // Candidate fallback chain: Primary model first, followed by configured fallback candidates

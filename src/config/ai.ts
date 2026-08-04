@@ -21,8 +21,8 @@ const getEnvFallbackModels = (): string[] => {
   if (envFallbacks) {
     return envFallbacks.split(',').map((m: string) => m.trim()).filter(Boolean);
   }
-  // Standard recommended fallback candidates in order of speed and stability
-  return ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
+  // Robust production models in order of speed and stability
+  return ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
 };
 
 export const AI_CONFIG: AIModelConfig = {
@@ -33,5 +33,16 @@ export const AI_CONFIG: AIModelConfig = {
 };
 
 export const getApiKey = (): string => {
-  return import.meta.env.VITE_GEMINI_API_KEY || '';
+  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (envKey && typeof envKey === 'string' && envKey.trim() !== '') {
+    return envKey.trim();
+  }
+  if (typeof window !== 'undefined') {
+    const localKey = localStorage.getItem('prime_gemini_api_key');
+    if (localKey && typeof localKey === 'string' && localKey.trim() !== '') {
+      return localKey.trim();
+    }
+  }
+  return '';
 };
+
