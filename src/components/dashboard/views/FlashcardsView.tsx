@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookMarked, ChevronLeft, ChevronRight, RotateCcw, Plus, Sparkles, X, Loader2, Trash2 } from 'lucide-react';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { processFileClientSide } from '../../../lib/documentProcessor';
+import { useAuth } from '../../../contexts/AuthContext';
+import { dbService } from '../../../services/db/databaseService';
 
 interface Flashcard {
   id: string;
@@ -19,6 +21,7 @@ interface Deck {
 }
 
 export const FlashcardsView = () => {
+  const { user } = useAuth();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [activeDeck, setActiveDeck] = useState<Deck | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -40,39 +43,70 @@ export const FlashcardsView = () => {
   ]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('prime_flashcard_decks_v2');
-    if (saved) {
-      try {
-        setDecks(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse saved flashcard decks:", e);
-      }
-    } else {
-      const defaultDecks: Deck[] = [
-        {
-          id: '1',
-          title: 'Cellular Biology Basics',
-          createdAt: Date.now(),
-          cards: [
-            { id: '1-1', front: 'What is the powerhouse of the cell?', back: 'Mitochondria' },
-            { id: '1-2', front: 'What organelle is responsible for protein synthesis?', back: 'Ribosome' },
-            { id: '1-3', front: 'What is the process of cell division called?', back: 'Mitosis' }
-          ]
-        },
-        {
-          id: '2',
-          title: 'World History: WW2',
-          createdAt: Date.now(),
-          cards: [
-            { id: '2-1', front: 'In what year did World War II end?', back: '1945' },
-            { id: '2-2', front: 'What was the code name for the Battle of Normandy?', back: 'Operation Overlord' }
-          ]
+    const loadFlashcards = async () => {
+      if (user?.id) {
+        const dbCards = await dbService.fetchFlashcards(user.id);
+        if (dbCards && dbCards.length > 0) {
+          // Group flat flashcards by deck_title
+          const grouped: Record<string, Flashcard[]> = {};
+          dbCards.forEach((card) => {
+            const title = card.deck_title || 'General Deck';
+            if (!grouped[title]) grouped[title] = [];
+            grouped[title].push({
+              id: card.id,
+              front: card.front,
+              back: card.back,
+            });
+          });
+
+          const formattedDecks: Deck[] = Object.keys(grouped).map((title, idx) => ({
+            id: `db-deck-${idx}`,
+            title,
+            cards: grouped[title],
+            createdAt: Date.now(),
+          }));
+
+          setDecks(formattedDecks);
+          return;
         }
-      ];
-      setDecks(defaultDecks);
-      localStorage.setItem('prime_flashcard_decks_v2', JSON.stringify(defaultDecks));
-    }
-  }, []);
+      }
+
+      const saved = localStorage.getItem('prime_flashcard_decks_v2');
+      if (saved) {
+        try {
+          setDecks(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse saved flashcard decks:", e);
+        }
+      } else {
+        const defaultDecks: Deck[] = [
+          {
+            id: '1',
+            title: 'Cellular Biology Basics',
+            createdAt: Date.now(),
+            cards: [
+              { id: '1-1', front: 'What is the powerhouse of the cell?', back: 'Mitochondria' },
+              { id: '1-2', front: 'What organelle is responsible for protein synthesis?', back: 'Ribosome' },
+              { id: '1-3', front: 'What is the process of cell division called?', back: 'Mitosis' }
+            ]
+          },
+          {
+            id: '2',
+            title: 'World History: WW2',
+            createdAt: Date.now(),
+            cards: [
+              { id: '2-1', front: 'In what year did World War II end?', back: '1945' },
+              { id: '2-2', front: 'What was the code name for the Battle of Normandy?', back: 'Operation Overlord' }
+            ]
+          }
+        ];
+        setDecks(defaultDecks);
+        localStorage.setItem('prime_flashcard_decks_v2', JSON.stringify(defaultDecks));
+      }
+    };
+
+    loadFlashcards();
+  }, [user]);
 
   const saveDecks = (updatedDecks: Deck[]) => {
     setDecks(updatedDecks);
@@ -195,6 +229,16 @@ Example format:
         createdAt: Date.now(),
       };
 
+      if (user?.id) {
+        generatedCards.forEach((c) => {
+          dbService.saveFlashcard(user.id, {
+            deck_title: newDeckTitle,
+            front: c.front,
+            back: c.back,
+          });
+        });
+      }
+
       const updatedDecks = [newDeck, ...decks];
       saveDecks(updatedDecks);
       setIsCreateModalOpen(false);
@@ -225,6 +269,16 @@ Example format:
       cards: validCards.map((c, i) => ({ id: `${Date.now()}-${i}`, front: c.front, back: c.back })),
       createdAt: Date.now(),
     };
+
+    if (user?.id) {
+      validCards.forEach((c) => {
+        dbService.saveFlashcard(user.id, {
+          deck_title: newDeckTitle,
+          front: c.front,
+          back: c.back,
+        });
+      });
+    }
 
     const updatedDecks = [newDeck, ...decks];
     saveDecks(updatedDecks);

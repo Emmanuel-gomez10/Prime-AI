@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Download, Share2, Search, Edit3 } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { dbService } from '../../../services/db/databaseService';
 
 interface Note {
   id: string;
@@ -13,62 +15,98 @@ interface Note {
 }
 
 export const NotesView = () => {
+  const { user } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('prime_notes');
-    if (saved) {
-      setNotes(JSON.parse(saved));
-    } else {
-      const mockNotes: Note[] = [
-        {
-          id: '1',
-          title: 'Cellular Biology: Mitochondria',
-          lastEdited: 'Today, 2:30 PM',
-          content: [
-            {
-              heading: 'Overview',
-              body: ['Mitochondria are membrane-bound cell organelles (mitochondrion, singular) that generate most of the chemical energy needed to power the cell\'s biochemical reactions.']
-            },
-            {
-              heading: 'Structure',
-              body: [
-                'Outer Membrane: Contains porins, making it relatively permeable.',
-                'Inner Membrane: Highly folded into cristae to increase surface area.',
-                'Matrix: The central space containing enzymes, mitochondrial DNA, and ribosomes.'
-              ]
-            },
-            {
-              heading: 'Key Functions',
-              body: [
-                'ATP Production (Oxidative Phosphorylation)',
-                'Regulation of cellular metabolism',
-                'Apoptosis (programmed cell death)'
-              ]
+    const loadNotes = async () => {
+      if (user?.id) {
+        const dbNotes = await dbService.fetchNotes(user.id);
+        if (dbNotes && dbNotes.length > 0) {
+          const formatted: Note[] = dbNotes.map((n) => {
+            let parsedContent = [];
+            try {
+              parsedContent = typeof n.content === 'string' ? JSON.parse(n.content) : n.content;
+              if (!Array.isArray(parsedContent)) {
+                parsedContent = [{ heading: 'Content', body: [n.content] }];
+              }
+            } catch {
+              parsedContent = [{ heading: 'Content', body: [n.content] }];
             }
-          ]
-        },
-        {
-          id: '2',
-          title: 'Introduction to Quantum Mechanics',
-          lastEdited: 'Yesterday, 11:15 AM',
-          content: [
-            {
-              heading: 'Core Concepts',
-              body: ['Quantum mechanics is a fundamental theory in physics that provides a description of the physical properties of nature at the scale of atoms and subatomic particles.']
-            },
-            {
-              heading: 'Wave-Particle Duality',
-              body: ['Every particle or quantum entity may be described as either a particle or a wave. It expresses the inability of the classical concepts "particle" or "wave" to fully describe the behavior of quantum-scale objects.']
-            }
-          ]
+
+            return {
+              id: n.id,
+              title: n.title,
+              lastEdited: new Date(n.updated_at || n.created_at).toLocaleDateString(),
+              content: parsedContent,
+            };
+          });
+
+          setNotes(formatted);
+          if (formatted.length > 0) setActiveNote(formatted[0]);
+          return;
         }
-      ];
-      setNotes(mockNotes);
-      localStorage.setItem('prime_notes', JSON.stringify(mockNotes));
-    }
-  }, []);
+      }
+
+      const saved = localStorage.getItem('prime_notes');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setNotes(parsed);
+        if (parsed.length > 0) setActiveNote(parsed[0]);
+      } else {
+        const mockNotes: Note[] = [
+          {
+            id: '1',
+            title: 'Cellular Biology: Mitochondria',
+            lastEdited: 'Today, 2:30 PM',
+            content: [
+              {
+                heading: 'Overview',
+                body: ['Mitochondria are membrane-bound cell organelles (mitochondrion, singular) that generate most of the chemical energy needed to power the cell\'s biochemical reactions.']
+              },
+              {
+                heading: 'Structure',
+                body: [
+                  'Outer Membrane: Contains porins, making it relatively permeable.',
+                  'Inner Membrane: Highly folded into cristae to increase surface area.',
+                  'Matrix: The central space containing enzymes, mitochondrial DNA, and ribosomes.'
+                ]
+              },
+              {
+                heading: 'Key Functions',
+                body: [
+                  'ATP Production (Oxidative Phosphorylation)',
+                  'Regulation of cellular metabolism',
+                  'Apoptosis (programmed cell death)'
+                ]
+              }
+            ]
+          },
+          {
+            id: '2',
+            title: 'Introduction to Quantum Mechanics',
+            lastEdited: 'Yesterday, 11:15 AM',
+            content: [
+              {
+                heading: 'Core Concepts',
+                body: ['Quantum mechanics is a fundamental theory in physics that provides a description of the physical properties of nature at the scale of atoms and subatomic particles.']
+              },
+              {
+                heading: 'Wave-Particle Duality',
+                body: ['Every particle or quantum entity may be described as either a particle or a wave. It expresses the inability of the classical concepts "particle" or "wave" to fully describe the behavior of quantum-scale objects.']
+              }
+            ]
+          }
+        ];
+        setNotes(mockNotes);
+        if (mockNotes.length > 0) setActiveNote(mockNotes[0]);
+        localStorage.setItem('prime_notes', JSON.stringify(mockNotes));
+      }
+    };
+
+    loadNotes();
+  }, [user]);
 
   return (
     <div className="flex-1 w-full max-w-6xl mx-auto px-4 lg:px-8 py-8 h-full flex flex-col md:flex-row gap-6 overflow-hidden">

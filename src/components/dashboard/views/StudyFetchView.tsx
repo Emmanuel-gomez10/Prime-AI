@@ -3,6 +3,8 @@ import { Upload, FileText, File as FileIcon, X, Loader2, Sparkles, Bookmark, Hel
 import { processFileClientSide } from '../../../lib/documentProcessor';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { dbService } from '../../../services/db/databaseService';
 
 
 interface SavedStudyMaterial {
@@ -16,6 +18,7 @@ interface SavedStudyMaterial {
 }
 
 export const StudyFetchView = () => {
+  const { user } = useAuth();
   const { sendMessage, createNewThread } = useWorkspace();
   const [documents, setDocuments] = useState<SavedStudyMaterial[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -24,15 +27,40 @@ export const StudyFetchView = () => {
   const [selectedMaterial, setSelectedMaterial] = useState<SavedStudyMaterial | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('prime_study_materials_v2');
-    if (saved) {
-      try {
-        setDocuments(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse saved study materials:", e);
+    const loadMaterials = async () => {
+      if (user?.id) {
+        const dbMats = await dbService.fetchStudyMaterials(user.id);
+        if (dbMats && dbMats.length > 0) {
+          const formatted: SavedStudyMaterial[] = dbMats.map((m) => ({
+            id: m.id,
+            name: m.name,
+            size: m.size,
+            date: new Date(m.created_at).toLocaleDateString(),
+            summary: m.summary,
+            questions: Array.isArray(m.questions) ? m.questions : [],
+            extractedText: m.extracted_text || '',
+          }));
+
+          setDocuments(formatted);
+          if (formatted.length > 0) setSelectedMaterial(formatted[0]);
+          return;
+        }
       }
-    }
-  }, []);
+
+      const saved = localStorage.getItem('prime_study_materials_v2');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setDocuments(parsed);
+          if (parsed.length > 0) setSelectedMaterial(parsed[0]);
+        } catch (e) {
+          console.error("Failed to parse saved study materials:", e);
+        }
+      }
+    };
+
+    loadMaterials();
+  }, [user]);
 
   const saveMaterials = (mats: SavedStudyMaterial[]) => {
     setDocuments(mats);
@@ -121,6 +149,20 @@ export const StudyFetchView = () => {
         extractedText: processed.content.slice(0, 5000), // store preview
       };
 
+      if (user?.id) {
+        dbService.saveStudyMaterial(user.id, {
+          name: newMaterial.name,
+          size: newMaterial.size,
+          summary: newMaterial.summary,
+          questions: newMaterial.questions,
+          extractedText: newMaterial.extractedText,
+        }).then((res) => {
+          if (res?.id) {
+            newMaterial.id = res.id;
+          }
+        });
+      }
+
       const updated = [newMaterial, ...documents];
       saveMaterials(updated);
       setSelectedMaterial(newMaterial);
@@ -134,6 +176,9 @@ export const StudyFetchView = () => {
   };
 
   const deleteMaterial = (id: string) => {
+    if (user?.id) {
+      dbService.deleteStudyMaterial(id);
+    }
     saveMaterials(documents.filter(d => d.id !== id));
     if (selectedMaterial?.id === id) {
       setSelectedMaterial(null);

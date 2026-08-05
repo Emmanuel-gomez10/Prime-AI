@@ -266,15 +266,33 @@ class DatabaseService {
     }
   }
 
-  public async saveFlashcard(userId: string, flashcard: { deck_title: string; front: string; back: string }) {
+  // --- QUIZ RESULTS ---
+  public async fetchQuizResults(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('flashcards')
+        .from('quiz_results')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('DatabaseService fetchQuizResults error:', e);
+      return null;
+    }
+  }
+
+  public async saveQuizResult(userId: string, quizResult: { quiz_title: string; score: number; total_questions: number; details?: any }) {
+    try {
+      const { data, error } = await supabase
+        .from('quiz_results')
         .insert({
           user_id: userId,
-          deck_title: flashcard.deck_title,
-          front: flashcard.front,
-          back: flashcard.back,
+          quiz_title: quizResult.quiz_title,
+          score: quizResult.score,
+          total_questions: quizResult.total_questions,
+          details: quizResult.details || {},
         })
         .select()
         .single();
@@ -282,10 +300,27 @@ class DatabaseService {
       if (error) throw error;
       return data;
     } catch (e) {
-      console.error('DatabaseService saveFlashcard error:', e);
+      console.error('DatabaseService saveQuizResult error:', e);
       return null;
+    }
+  }
+
+  public async deleteNote(id: string) {
+    try {
+      await supabase.from('notes').delete().eq('id', id);
+    } catch (e) {
+      console.error('DatabaseService deleteNote error:', e);
+    }
+  }
+
+  public async deleteFlashcard(id: string) {
+    try {
+      await supabase.from('flashcards').delete().eq('id', id);
+    } catch (e) {
+      console.error('DatabaseService deleteFlashcard error:', e);
     }
   }
 }
 
 export const dbService = DatabaseService.getInstance();
+

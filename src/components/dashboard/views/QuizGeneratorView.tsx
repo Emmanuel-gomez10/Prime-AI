@@ -4,6 +4,8 @@ import { FileQuestion, Plus, Sparkles, X, Loader2, CheckCircle2, XCircle, Rotate
 import Markdown from 'markdown-to-jsx';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { processFileClientSide } from '../../../lib/documentProcessor';
+import { useAuth } from '../../../contexts/AuthContext';
+import { dbService } from '../../../services/db/databaseService';
 
 interface QuizQuestion {
   id: string;
@@ -29,6 +31,7 @@ interface QuizResult {
 }
 
 export const QuizGeneratorView = () => {
+  const { user } = useAuth();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
 
@@ -128,6 +131,15 @@ export const QuizGeneratorView = () => {
       percentage,
       userAnswers: selectedAnswers,
     };
+
+    if (user?.id) {
+      dbService.saveQuizResult(user.id, {
+        quiz_title: activeQuiz.title,
+        score: correctCount,
+        total_questions: total,
+        details: { percentage, userAnswers: selectedAnswers },
+      });
+    }
 
     setQuizResult(result);
     setIsSubmitted(true);
