@@ -13,7 +13,7 @@ export interface AIModelConfig {
 }
 
 const getEnvModel = (): string => {
-  return import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash';
+  return import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash';
 };
 
 const getEnvFallbackModels = (): string[] => {
@@ -21,8 +21,8 @@ const getEnvFallbackModels = (): string[] => {
   if (envFallbacks) {
     return envFallbacks.split(',').map((m: string) => m.trim()).filter(Boolean);
   }
-  // Officially supported production models in order of speed and stability
-  return ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro'];
+  // Verified production models in order of speed, reliability, and quota
+  return ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 };
 
 export const AI_CONFIG: AIModelConfig = {

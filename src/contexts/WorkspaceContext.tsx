@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { primeEngine } from '../lib/primeAiEngine';
 import type { FileAttachment } from '../lib/primeAiEngine';
 import { processFileClientSide } from '../lib/documentProcessor';
+import { dbService } from '../services/db/databaseService';
+import { useAuth } from './AuthContext';
 
 export interface Message {
   id: string;
@@ -63,6 +65,7 @@ const STORAGE_KEY = 'prime_ai_threads_v2';
 const ACTIVE_THREAD_KEY = 'prime_ai_active_thread_id';
 
 export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   const [activeView, setActiveView] = useState<ViewType>('home');
   const [threads, setThreads] = useState<ConversationThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
@@ -97,27 +100,46 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Load threads from local storage
+  // Load threads from Supabase DB or LocalStorage
   useEffect(() => {
-    const savedThreads = localStorage.getItem(STORAGE_KEY);
-    const savedActiveId = localStorage.getItem(ACTIVE_THREAD_KEY);
-
-    if (savedThreads) {
-      try {
-        const parsed: ConversationThread[] = JSON.parse(savedThreads);
-        setThreads(parsed);
-        if (savedActiveId && parsed.some(t => t.id === savedActiveId)) {
-          setActiveThreadId(savedActiveId);
-        } else if (parsed.length > 0) {
-          setActiveThreadId(parsed[0].id);
+    const loadUserThreads = async () => {
+      if (user?.id) {
+        const dbThreads = await dbService.fetchUserThreads(user.id);
+        if (dbThreads && dbThreads.length > 0) {
+          setThreads(dbThreads);
+          const savedActiveId = localStorage.getItem(ACTIVE_THREAD_KEY);
+          if (savedActiveId && dbThreads.some((t) => t.id === savedActiveId)) {
+            setActiveThreadId(savedActiveId);
+          } else {
+            setActiveThreadId(dbThreads[0].id);
+          }
+          return;
         }
-      } catch (e) {
-        console.error("Failed to parse saved threads:", e);
       }
-    }
-  }, []);
 
-  // Sync threads state to local storage
+      // Local storage fallback
+      const savedThreads = localStorage.getItem(STORAGE_KEY);
+      const savedActiveId = localStorage.getItem(ACTIVE_THREAD_KEY);
+
+      if (savedThreads) {
+        try {
+          const parsed: ConversationThread[] = JSON.parse(savedThreads);
+          setThreads(parsed);
+          if (savedActiveId && parsed.some((t) => t.id === savedActiveId)) {
+            setActiveThreadId(savedActiveId);
+          } else if (parsed.length > 0) {
+            setActiveThreadId(parsed[0].id);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved threads:", e);
+        }
+      }
+    };
+
+    loadUserThreads();
+  }, [user]);
+
+  // Sync threads state to local storage & DB
   useEffect(() => {
     if (threads.length > 0) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(threads));
@@ -151,8 +173,18 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
 
     setThreads((prev) => [newThread, ...prev]);
     setActiveThreadId(newId);
+
+    if (user?.id) {
+      dbService.createThread(user.id, 'New Study Session').then((res) => {
+        if (res?.id) {
+          setThreads((prev) => prev.map((t) => (t.id === newId ? { ...t, id: res.id } : t)));
+          setActiveThreadId(res.id);
+        }
+      });
+    }
+
     return newId;
-  }, []);
+  }, [user]);
 
   const switchThread = (threadId: string) => {
     setActiveThreadId(threadId);
@@ -160,6 +192,9 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteThread = (threadId: string) => {
+    if (user?.id) {
+      dbService.deleteThread(threadId);
+    }
     setThreads((prev) => {
       const filtered = prev.filter((t) => t.id !== threadId);
       if (activeThreadId === threadId) {
@@ -309,6 +344,12 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
             };
           })
         );
+      }
+
+      // Persist to Supabase if logged in
+      if (user?.id && currentThreadId) {
+        dbService.saveMessage(user.id, currentThreadId, 'user', text, attachmentsToSend);
+        dbService.saveMessage(user.id, currentThreadId, 'model', fullText);
       }
     } catch (error: any) {
       console.error("AI Generation Error:", error);

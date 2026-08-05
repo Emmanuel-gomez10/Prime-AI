@@ -56,7 +56,7 @@ export const categorizeAIError = (error: any): CategorizedAIError => {
   if (status === 429 || message.includes('429') || message.includes('RESOURCE_EXHAUSTED') || message.includes('quota')) {
     return {
       category: 'RATE_LIMIT_EXCEEDED',
-      userMessage: 'High traffic detected. Switching to backup AI pipeline...',
+      userMessage: 'AI API quota limit reached. Please wait a few seconds before trying again or verify your Gemini API key in Settings.',
       isRetryable: true,
       rawMessage: message,
     };

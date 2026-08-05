@@ -169,6 +169,8 @@ class AIService {
         if (i < candidateModels.length - 1 && categorized.isRetryable) {
           const nextModel = candidateModels[i + 1];
           aiLogger.logFallback(request.featureName, modelName, nextModel, categorized.category);
+          // 1-second pause to allow rate limits to recover before next candidate
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           continue;
         }
 
