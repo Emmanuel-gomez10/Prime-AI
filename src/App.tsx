@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { GuestRoute } from './components/auth/GuestRoute';
+import { AdminRoute } from './components/auth/AdminRoute';
 
 import { Home } from './pages/Home';
 import { SignUp } from './pages/SignUp';
@@ -12,6 +13,7 @@ import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
 import { EmailVerification } from './pages/EmailVerification';
 import { Dashboard } from './pages/Dashboard';
+import { AdminPage } from './pages/Admin';
 import { useEffect } from 'react';
 
 function App() {
@@ -45,6 +47,11 @@ function App() {
           {/* Protected Routes (Only accessible if logged in) */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+          </Route>
+
+          {/* Admin Routes (Only accessible to users with Admin role) */}
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
 
           {/* Catch-all fallback route to prevent 404 / white screen */}
