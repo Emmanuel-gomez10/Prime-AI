@@ -1,6 +1,6 @@
 /**
- * Error Categorizer for Gemini API Errors
- * Transforms technical API stack traces into user-friendly UI error notifications.
+ * Error Categorizer for AI API Errors
+ * Logs technical API details to console and provides clean, user-friendly UI messages.
  */
 
 export type AIErrorCategory =
@@ -23,11 +23,14 @@ export const categorizeAIError = (error: any): CategorizedAIError => {
   const message = error?.message || String(error) || '';
   const status = error?.status || error?.statusCode;
 
+  // Always log full technical error details for debugging
+  console.error('[AI Technical Service Error]:', { status, error, message });
+
   // 1. Model Not Found / 404 / Deprecated
-  if (status === 404 || message.includes('404') || message.includes('not found') || message.includes('is not supported for model')) {
+  if (status === 404 || message.includes('404') || message.includes('model_not_found') || message.includes('does not exist')) {
     return {
       category: 'MODEL_NOT_FOUND',
-      userMessage: 'Prime AI is temporarily switching to a fallback model. Please wait...',
+      userMessage: 'Prime AI is temporarily unavailable. Please try again.',
       isRetryable: true,
       rawMessage: message,
     };
@@ -36,27 +39,27 @@ export const categorizeAIError = (error: any): CategorizedAIError => {
   if (message.toLowerCase().includes('deprecated')) {
     return {
       category: 'MODEL_DEPRECATED',
-      userMessage: 'Updating AI model architecture. Retrying request...',
+      userMessage: 'Prime AI is temporarily unavailable. Please try again.',
       isRetryable: true,
       rawMessage: message,
     };
   }
 
-  // 2. Invalid API Key / 401 / 403
-  if (status === 401 || status === 403 || message.includes('API_KEY_INVALID') || message.includes('API key not valid')) {
+  // 2. Invalid API Key / Auth
+  if (status === 401 || status === 403 || message.includes('invalid_api_key') || message.includes('Incorrect API key')) {
     return {
       category: 'INVALID_API_KEY',
-      userMessage: 'Invalid or missing API key. Please verify your VITE_GEMINI_API_KEY environment variable.',
+      userMessage: 'Prime AI is temporarily unavailable. Please try again.',
       isRetryable: false,
       rawMessage: message,
     };
   }
 
   // 3. Rate Limit / 429
-  if (status === 429 || message.includes('429') || message.includes('RESOURCE_EXHAUSTED') || message.includes('quota')) {
+  if (status === 429 || message.includes('429') || message.includes('rate_limit_exceeded') || message.includes('insufficient_quota')) {
     return {
       category: 'RATE_LIMIT_EXCEEDED',
-      userMessage: 'AI API quota limit reached. Please wait a few seconds before trying again or verify your Gemini API key in Settings.',
+      userMessage: 'Please try again in a moment.',
       isRetryable: true,
       rawMessage: message,
     };
@@ -66,17 +69,17 @@ export const categorizeAIError = (error: any): CategorizedAIError => {
   if (message.includes('fetch failed') || message.includes('network error') || message.includes('timeout')) {
     return {
       category: 'NETWORK_TIMEOUT',
-      userMessage: 'Unable to reach the AI service. Retrying connection...',
+      userMessage: 'Unable to complete your request right now.',
       isRetryable: true,
       rawMessage: message,
     };
   }
 
   // 5. Invalid Request / 400
-  if (status === 400 || message.includes('INVALID_ARGUMENT')) {
+  if (status === 400 || message.includes('invalid_request_error')) {
     return {
       category: 'INVALID_REQUEST',
-      userMessage: 'The AI request contained invalid parameters. Please check your attachments or prompt format.',
+      userMessage: 'Something went wrong. Please try again.',
       isRetryable: false,
       rawMessage: message,
     };
@@ -84,7 +87,7 @@ export const categorizeAIError = (error: any): CategorizedAIError => {
 
   return {
     category: 'UNKNOWN_ERROR',
-    userMessage: 'An unexpected AI processing error occurred. Retrying shortly...',
+    userMessage: 'Something went wrong. Please try again.',
     isRetryable: true,
     rawMessage: message,
   };

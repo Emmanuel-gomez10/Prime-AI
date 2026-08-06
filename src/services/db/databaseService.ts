@@ -266,6 +266,27 @@ class DatabaseService {
     }
   }
 
+  public async saveFlashcard(userId: string, card: { deck_title: string; front: string; back: string }) {
+    try {
+      const { data, error } = await supabase
+        .from('flashcards')
+        .insert({
+          user_id: userId,
+          deck_title: card.deck_title,
+          front: card.front,
+          back: card.back,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('DatabaseService saveFlashcard error:', e);
+      return null;
+    }
+  }
+
   // --- QUIZ RESULTS ---
   public async fetchQuizResults(userId: string) {
     try {

@@ -8,15 +8,15 @@
     --surface-color: 255 255 255;
     --text-primary: 15 23 42;
     --text-secondary: 100 116 139;
-    --border-color: 0 0 0;
-    --card-hover: 0 0 0;
+    --border-color: 226 232 240;
+    --card-hover: 241 245 249;
   }
 
   .dark {
     --bg-color: 10 13 20;
     --surface-color: 18 20 29;
-    --text-primary: 255 255 255;
-    --text-secondary: 255 255 255;
+    --text-primary: 248 250 252;
+    --text-secondary: 148 163 184;
     --border-color: 255 255 255;
     --card-hover: 255 255 255;
   }

@@ -59,7 +59,7 @@ export const Navbar: React.FC = React.memo(() => {
           <a
             href="/"
             className="group relative flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md min-h-[44px]"
-            aria-label="Prime AI Home"
+            aria-label="Prime Home"
           >
             <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#7C3AED] to-[#41E5FF] p-[1px] overflow-hidden group-hover:shadow-[0_0_15px_rgba(124,58,237,0.5)] transition-shadow duration-300">
               <div className="absolute inset-0 bg-[#0d1024] rounded-lg m-[1px] flex items-center justify-center z-10">
@@ -73,7 +73,7 @@ export const Navbar: React.FC = React.memo(() => {
               </svg>
             </div>
             <span className="text-lg sm:text-xl font-bold text-primary-text tracking-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-white/70 transition-all duration-300">
-              Prime AI
+              Prime
             </span>
           </a>
 
@@ -147,7 +147,7 @@ export const Navbar: React.FC = React.memo(() => {
             className="fixed inset-0 z-50 flex flex-col bg-[#070816]/95 backdrop-blur-2xl px-5 py-6 md:hidden overflow-y-auto"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xl font-bold text-primary-text tracking-tight">Prime AI</span>
+              <span className="text-xl font-bold text-primary-text tracking-tight">Prime</span>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-2.5 text-textSecondary hover:text-primary-text transition-all rounded-full bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[44px] min-w-[44px] flex items-center justify-center"

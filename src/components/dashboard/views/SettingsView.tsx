@@ -12,8 +12,6 @@ export const SettingsView = () => {
   const [university, setUniversity] = useState('UNIZIK');
   const [studyLevel, setStudyLevel] = useState('Undergraduate (100 Level)');
   const [learningStyle, setLearningStyle] = useState('Visual & Active Recall');
-  const [apiKey, setApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
   // App Toggles
@@ -25,9 +23,6 @@ export const SettingsView = () => {
   });
 
   useEffect(() => {
-    const savedKey = localStorage.getItem('prime_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
-    if (savedKey) setApiKey(savedKey);
-
     const savedProfile = localStorage.getItem('prime_user_profile_v2');
     if (savedProfile) {
       try {
@@ -56,11 +51,6 @@ export const SettingsView = () => {
   const handleSaveProfile = () => {
     const profile = { fullName, university, studyLevel, learningStyle };
     localStorage.setItem('prime_user_profile_v2', JSON.stringify(profile));
-    if (apiKey) {
-      localStorage.setItem('prime_gemini_api_key', apiKey.trim());
-    } else {
-      localStorage.removeItem('prime_gemini_api_key');
-    }
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
@@ -171,38 +161,13 @@ export const SettingsView = () => {
         {/* Preferences & Notifications Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
-          {/* Preferences */}
+          {/* App Preferences */}
           <div className="p-6 rounded-[24px] bg-surface border border-divider shadow-lg space-y-4">
             <h3 className="text-base font-bold text-primary-text flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" /> AI Preferences & API Key
+              <Sparkles className="w-4 h-4 text-primary" /> Study & AI Preferences
             </h3>
             <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-secondary-text uppercase tracking-wider mb-1 block">
-                  Gemini API Key (Optional Override)
-                </label>
-                <div className="relative">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full p-2.5 pr-20 rounded-xl bg-background border border-divider text-xs sm:text-sm text-primary-text outline-none focus:border-primary/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-card-hover text-secondary-text text-xs hover:text-primary-text transition-colors"
-                  >
-                    {showApiKey ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                <p className="text-[11px] text-secondary-text mt-1">
-                  Provided via Vercel env (`VITE_GEMINI_API_KEY`) or entered here for backup.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-divider">
+              <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-primary-text mb-0.5">Smart AI Autocomplete</h4>
                   <p className="text-secondary-text text-[11px]">Inline prompt suggestions & automatic study tips</p>
@@ -269,4 +234,3 @@ export const SettingsView = () => {
     </div>
   );
 };
-

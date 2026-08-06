@@ -13,16 +13,16 @@ export interface AIModelConfig {
 }
 
 const getEnvModel = (): string => {
-  return import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash';
+  return import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o';
 };
 
 const getEnvFallbackModels = (): string[] => {
-  const envFallbacks = import.meta.env.VITE_GEMINI_FALLBACK_MODELS;
+  const envFallbacks = import.meta.env.VITE_OPENAI_FALLBACK_MODELS;
   if (envFallbacks) {
     return envFallbacks.split(',').map((m: string) => m.trim()).filter(Boolean);
   }
-  // Verified production models in order of speed, reliability, and quota
-  return ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+  // Verified OpenAI models in order of speed, reliability, and capability
+  return ['gpt-4o', 'gpt-4o-mini'];
 };
 
 export const AI_CONFIG: AIModelConfig = {
@@ -33,16 +33,15 @@ export const AI_CONFIG: AIModelConfig = {
 };
 
 export const getApiKey = (): string => {
-  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const envKey = import.meta.env.VITE_OPENAI_API_KEY;
   if (envKey && typeof envKey === 'string' && envKey.trim() !== '') {
     return envKey.trim();
   }
   if (typeof window !== 'undefined') {
-    const localKey = localStorage.getItem('prime_gemini_api_key');
+    const localKey = localStorage.getItem('prime_openai_api_key');
     if (localKey && typeof localKey === 'string' && localKey.trim() !== '') {
       return localKey.trim();
     }
   }
   return '';
 };
-

@@ -59,7 +59,7 @@ export const Sidebar = ({ onClose }: { onClose: () => void }) => {
           <div className="w-8 h-8 rounded-lg bg-[#581c87]/30 border border-[#a855f7]/30 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.4)]">
             <GraduationCap className="w-5 h-5 text-primary" />
           </div>
-          <span className="font-display font-bold text-primary-text tracking-wide text-[16px]">Prime AI</span>
+          <span className="font-display font-bold text-primary-text tracking-wide text-[16px]">Prime</span>
         </div>
         <button onClick={onClose} className="lg:hidden text-secondary-text hover:text-primary-text transition-colors">
           <X className="w-5 h-5" />

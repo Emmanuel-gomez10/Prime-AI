@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { AI_CONFIG, getApiKey } from '../../config/ai';
 import { aiLogger } from './logger';
 import { categorizeAIError } from './errorCategorizer';
@@ -27,11 +27,11 @@ export interface AIServiceResponseStream {
  * Centralized AI Service
  * 
  * CRITICAL RULE: This is the ONLY place in the entire codebase where
- * `new GoogleGenerativeAI(...)` is called.
+ * `new OpenAI(...)` is called.
  */
 class AIService {
   private static instance: AIService;
-  private sdk: GoogleGenerativeAI | null = null;
+  private client: OpenAI | null = null;
   private activeKey: string = '';
 
   private constructor() {
@@ -42,10 +42,13 @@ class AIService {
     const key = getApiKey();
     if (key && key !== this.activeKey) {
       this.activeKey = key;
-      this.sdk = new GoogleGenerativeAI(key);
+      this.client = new OpenAI({
+        apiKey: key,
+        dangerouslyAllowBrowser: true,
+      });
       return true;
     }
-    return Boolean(this.sdk);
+    return Boolean(this.client);
   }
 
   public static getInstance(): AIService {
@@ -61,14 +64,16 @@ class AIService {
   public async generateStream(request: AIServiceRequest): Promise<AIServiceResponseStream> {
     const key = getApiKey();
     if (!key) {
-      throw new Error(
-        'Google Generative AI API key is missing. Please add VITE_GEMINI_API_KEY in your Vercel Environment Variables or enter your API key in Settings.'
-      );
+      console.error('[AI Technical Service Error]: Missing API Key');
+      throw new Error('Prime AI is temporarily unavailable. Please try again.');
     }
 
-    if (!this.sdk || this.activeKey !== key) {
+    if (!this.client || this.activeKey !== key) {
       this.activeKey = key;
-      this.sdk = new GoogleGenerativeAI(key);
+      this.client = new OpenAI({
+        apiKey: key,
+        dangerouslyAllowBrowser: true,
+      });
     }
 
     // Candidate fallback chain: Primary model first, followed by configured fallback candidates
@@ -84,34 +89,42 @@ class AIService {
 
       try {
         const startTime = Date.now();
-        const model = this.sdk.getGenerativeModel({
-          model: modelName,
-          systemInstruction: request.systemInstruction,
-        });
 
-        // Format history
-        const formattedHistory = (request.history || []).map((h) => ({
-          role: h.role,
-          parts: [{ text: h.content }],
-        }));
+        const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
-        // Format user message parts (text + attachments)
-        const currentParts: any[] = [];
+        // 1. System instruction
+        if (request.systemInstruction) {
+          messages.push({
+            role: 'system',
+            content: request.systemInstruction,
+          });
+        }
+
+        // 2. Chat history
+        if (request.history && request.history.length > 0) {
+          for (const item of request.history) {
+            messages.push({
+              role: item.role === 'model' ? 'assistant' : 'user',
+              content: item.content,
+            });
+          }
+        }
+
+        // 3. User message parts (text + attachments)
+        const userContentParts: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
         if (request.attachments && request.attachments.length > 0) {
           for (const att of request.attachments) {
             if (att.type === 'image' && att.base64) {
-              const match = att.base64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-              if (match) {
-                currentParts.push({
-                  inlineData: {
-                    mimeType: match[1],
-                    data: match[2],
-                  },
-                });
-              }
+              userContentParts.push({
+                type: 'image_url',
+                image_url: {
+                  url: att.base64,
+                },
+              });
             } else {
-              currentParts.push({
+              userContentParts.push({
+                type: 'text',
                 text: `[ATTACHED DOCUMENT (${att.name})]:\n${att.content}\n--- END ATTACHMENT ---`,
               });
             }
@@ -119,25 +132,26 @@ class AIService {
         }
 
         if (request.userPrompt) {
-          currentParts.push({ text: request.userPrompt });
-        }
-
-        let rawStream: any;
-
-        if (formattedHistory.length === 0) {
-          const result = await model.generateContentStream(currentParts);
-          rawStream = result.stream;
-        } else {
-          const chat = model.startChat({
-            history: formattedHistory,
-            generationConfig: {
-              maxOutputTokens: AI_CONFIG.maxOutputTokens,
-              temperature: AI_CONFIG.temperature,
-            },
+          userContentParts.push({
+            type: 'text',
+            text: request.userPrompt,
           });
-          const result = await chat.sendMessageStream(currentParts);
-          rawStream = result.stream;
         }
+
+        if (userContentParts.length > 0) {
+          messages.push({
+            role: 'user',
+            content: userContentParts,
+          });
+        }
+
+        const rawStream = await this.client.chat.completions.create({
+          model: modelName,
+          messages,
+          max_tokens: AI_CONFIG.maxOutputTokens,
+          temperature: AI_CONFIG.temperature,
+          stream: true,
+        });
 
         const executionTimeMs = Date.now() - startTime;
         aiLogger.logSuccess({
@@ -183,9 +197,9 @@ class AIService {
     throw new Error(finalCategorized.userMessage);
   }
 
-  private async *createAsyncGenerator(stream: any): AsyncGenerator<string, void, unknown> {
+  private async *createAsyncGenerator(stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>): AsyncGenerator<string, void, unknown> {
     for await (const chunk of stream) {
-      const text = chunk.text();
+      const text = chunk.choices[0]?.delta?.content;
       if (text) {
         yield text;
       }
