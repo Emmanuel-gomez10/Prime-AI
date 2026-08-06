@@ -1,5 +1,5 @@
 ﻿import React, { useState } from "react";
-import { BookOpen, FileText, Plus, Search, Trash2, Edit, GraduationCap, Folder } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface ResourceItem {
@@ -48,7 +48,6 @@ export const ContentManagementView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Content & Past Questions Management</h1>
@@ -64,7 +63,6 @@ export const ContentManagementView: React.FC = () => {
         </button>
       </div>
 
-      {/* Add Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#121428] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -126,7 +124,6 @@ export const ContentManagementView: React.FC = () => {
         </div>
       )}
 
-      {/* Table */}
       <div className="rounded-2xl bg-[#121428]/80 backdrop-blur-xl border border-white/10 overflow-hidden shadow-2xl">
         <table className="w-full text-left text-xs">
           <thead className="bg-white/[0.03] border-b border-white/10 text-gray-400 uppercase text-[10px]">

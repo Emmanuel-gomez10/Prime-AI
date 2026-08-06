@@ -17,11 +17,10 @@ import {
   LogOut, 
   ChevronLeft, 
   ChevronRight, 
-  ShieldAlert,
-  GraduationCap,
-  Sparkles
+  ShieldAlert
 } from "lucide-react";
-import { useAdmin, AdminViewType } from "../AdminContext";
+import { useAdmin } from "../AdminContext";
+import type { AdminViewType } from "../AdminContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -174,7 +173,6 @@ export const AdminSidebar: React.FC = () => {
                     </span>
                   )}
 
-                  {/* Active Indicator Bar */}
                   {isActive && (
                     <motion.div
                       layoutId="activeIndicator"

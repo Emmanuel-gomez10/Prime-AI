@@ -1,5 +1,4 @@
 ﻿import React from "react";
-import { BarChart3, TrendingUp, Users, Activity, FileText, Sparkles } from "lucide-react";
 
 export const AnalyticsView: React.FC = () => {
   return (

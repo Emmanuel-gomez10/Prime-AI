@@ -1,11 +1,10 @@
 ﻿import React from "react";
-import { Activity, Database, Server, Cpu, HardDrive, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { CheckCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export const SystemHealthView: React.FC = () => {
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">System Health & Infrastructure</h1>
@@ -21,7 +20,6 @@ export const SystemHealthView: React.FC = () => {
         </button>
       </div>
 
-      {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="rounded-2xl bg-[#121428]/80 backdrop-blur-xl border border-white/10 p-5 space-y-3">
           <div className="flex items-center justify-between">
@@ -60,7 +58,6 @@ export const SystemHealthView: React.FC = () => {
         </div>
       </div>
 
-      {/* Logs section */}
       <div className="rounded-2xl bg-[#121428]/80 backdrop-blur-xl border border-white/10 p-6 space-y-4">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider">Live System Logs</h3>
         <div className="bg-black/50 border border-white/5 rounded-xl p-4 font-mono text-xs text-gray-300 space-y-2 max-h-60 overflow-y-auto">

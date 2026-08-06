@@ -5,13 +5,7 @@ import {
   UserCheck, 
   UserX, 
   Shield, 
-  Key, 
-  BarChart2, 
-  MoreVertical, 
-  Check, 
-  Mail, 
-  Crown,
-  Calendar
+  Key
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -39,7 +33,6 @@ export const UserManagementView: React.FC = () => {
   const [users, setUsers] = useState<UserRecord[]>(mockUsers);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -77,7 +70,6 @@ export const UserManagementView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">User Management</h1>
@@ -89,7 +81,6 @@ export const UserManagementView: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters & Search */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#121428]/80 p-4 rounded-2xl border border-white/10 backdrop-blur-xl">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -119,7 +110,6 @@ export const UserManagementView: React.FC = () => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="rounded-2xl bg-[#121428]/80 backdrop-blur-xl border border-white/10 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">

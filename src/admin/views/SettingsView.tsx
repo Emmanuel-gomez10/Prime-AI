@@ -1,5 +1,5 @@
 ﻿import React, { useState } from "react";
-import { Settings as SettingsIcon, Shield, Key, Database, Sliders, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { toast } from "sonner";
 
 export const SettingsView: React.FC = () => {

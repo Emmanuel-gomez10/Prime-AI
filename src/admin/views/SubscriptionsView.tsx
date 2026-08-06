@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { CreditCard, Crown, DollarSign, CheckCircle2, ArrowUpRight } from "lucide-react";
+import { Crown } from "lucide-react";
 
 export const SubscriptionsView: React.FC = () => {
   return (

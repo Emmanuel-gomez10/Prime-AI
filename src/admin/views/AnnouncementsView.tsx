@@ -1,5 +1,5 @@
 ﻿import React, { useState } from "react";
-import { Megaphone, Plus, Trash2, Calendar, Bell, CheckCircle2 } from "lucide-react";
+import { Megaphone, Trash2, Bell } from "lucide-react";
 import { toast } from "sonner";
 
 interface Announcement {
@@ -45,13 +45,11 @@ export const AnnouncementsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Announcements & Broadcast System</h1>
         <p className="text-gray-400 text-xs mt-1">Broadcast system banners, feature updates, and exam reminders directly into student dashboards.</p>
       </div>
 
-      {/* Broadcast Form */}
       <div className="rounded-2xl bg-[#121428]/80 backdrop-blur-xl border border-white/10 p-6 shadow-2xl space-y-4">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Megaphone className="w-4 h-4 text-[#41E5FF]" /> Create New Broadcast Announcement
@@ -108,7 +106,6 @@ export const AnnouncementsView: React.FC = () => {
         </form>
       </div>
 
-      {/* Existing Announcements */}
       <div className="space-y-3">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider">Active & Scheduled Broadcasts</h3>
         {announcements.map((anc) => (

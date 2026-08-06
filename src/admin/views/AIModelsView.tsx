@@ -1,5 +1,5 @@
 ﻿import React, { useState } from "react";
-import { Cpu, Check, Sliders, Activity, DollarSign, RefreshCw, Zap } from "lucide-react";
+import { Cpu, RefreshCw, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 interface AIProvider {
@@ -40,13 +40,11 @@ export const AIModelsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">AI Models & Engine Control</h1>
         <p className="text-gray-400 text-xs mt-1">Configure default models, fallback chains, token limits, and multi-provider engine orchestration.</p>
       </div>
 
-      {/* Primary Model Status */}
       <div className="rounded-2xl bg-gradient-to-r from-[#121428] to-[#1A1D36] border border-white/10 p-6 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7C3AED] to-[#41E5FF] p-[1px] shadow-[0_0_20px_rgba(124,58,237,0.4)]">
@@ -74,7 +72,6 @@ export const AIModelsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Providers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {providers.map((prov) => (
           <div key={prov.id} className="rounded-2xl bg-[#121428]/80 backdrop-blur-xl border border-white/10 p-5 shadow-xl space-y-4">
