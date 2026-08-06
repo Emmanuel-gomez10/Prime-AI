@@ -39,8 +39,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const isConfigured = () => {
-    const url = import.meta.env.VITE_SUPABASE_URL;
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const url = import.meta.env.VITE_SUPABASE_URL || "https://knvilxppzhugfhbltukp.supabase.co";
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_O5lUeI22TPUrbefwyTwsTQ_oFrVF3CF";
     if (!url || typeof url !== 'string' || !key || typeof key !== 'string') return false;
     if (key.includes('placeholder') || key.includes('your-anon-key')) return false;
     try {
