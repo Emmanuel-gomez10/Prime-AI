@@ -53,7 +53,7 @@ export const SignUp = () => {
       toast.error(error.message || 'Error creating account');
     } else {
       if (data?.session) {
-        toast.success('Welcome to Prime AI!');
+        toast.success('Welcome to Prime!');
         navigate('/dashboard');
       } else {
         toast.success('Account created! Please check your email to verify your account.');
@@ -101,7 +101,7 @@ export const SignUp = () => {
                 </linearGradient>
               </svg>
             </div>
-            <span className="text-2xl font-bold tracking-tight">Prime AI</span>
+            <span className="text-2xl font-bold tracking-tight">Prime</span>
           </motion.a>
 
           {/* Headline & Description */}
@@ -116,7 +116,7 @@ export const SignUp = () => {
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] to-[#41E5FF]">Built for Students</span>
             </h1>
             <p className="text-lg text-secondary-text leading-relaxed max-w-md">
-              Prime AI helps students summarize notes, solve assignments, prepare for exams, generate flashcards, and organize study materials—all in one intelligent workspace.
+              Prime helps students summarize notes, solve assignments, prepare for exams, generate flashcards, and organize study materials—all in one intelligent workspace.
             </p>
           </motion.div>
 
@@ -153,7 +153,7 @@ export const SignUp = () => {
               
               {/* Prime AI Col */}
               <div className="flex flex-col gap-3">
-                <h4 className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] to-[#41E5FF] text-base font-semibold mb-2 border-b border-divider pb-2">Prime AI</h4>
+                <h4 className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] to-[#41E5FF] text-base font-semibold mb-2 border-b border-divider pb-2">Prime</h4>
                 {[
                   "Purpose-built for students",
                   "Guided academic workflows",
@@ -187,7 +187,7 @@ export const SignUp = () => {
               {[1,2,3,4,5].map(i => <svg key={i} className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>)}
             </div>
             <p className="text-primary-text italic text-sm md:text-base leading-relaxed">
-              "Prime AI helped me organize my study routine and prepare more efficiently for exams."
+              "Prime helped me organize my study routine and prepare more efficiently for exams."
             </p>
             <p className="text-secondary-text text-xs md:text-sm font-medium">— University Student</p>
           </motion.div>

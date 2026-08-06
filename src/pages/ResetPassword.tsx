@@ -85,7 +85,7 @@ export const ResetPassword = () => {
                 </linearGradient>
               </svg>
             </div>
-            <span className="text-2xl font-bold tracking-tight">Prime AI</span>
+            <span className="text-2xl font-bold tracking-tight">Prime</span>
           </div>
 
           <h2 className="text-2xl font-bold mb-2 tracking-tight text-center">Set New Password</h2>

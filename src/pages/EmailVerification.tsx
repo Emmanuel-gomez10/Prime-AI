@@ -57,7 +57,7 @@ export const EmailVerification = () => {
                 </linearGradient>
               </svg>
             </div>
-            <span className="text-2xl font-bold tracking-tight">Prime AI</span>
+            <span className="text-2xl font-bold tracking-tight">Prime</span>
           </Link>
 
           <div className="w-20 h-20 bg-gradient-to-br from-[#7C3AED]/20 to-[#41E5FF]/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(124,58,237,0.2)]">

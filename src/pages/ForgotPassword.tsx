@@ -66,7 +66,7 @@ export const ForgotPassword = () => {
                 </linearGradient>
               </svg>
             </div>
-            <span className="text-2xl font-bold tracking-tight">Prime AI</span>
+            <span className="text-2xl font-bold tracking-tight">Prime</span>
           </Link>
 
           <h2 className="text-2xl font-bold mb-2 tracking-tight text-center">Reset Password</h2>
