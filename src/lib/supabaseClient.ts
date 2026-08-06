@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
+const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 const getValidUrl = (url?: string): string => {
-  if (!url || typeof url !== 'string' || url.trim() === '') {
-    throw new Error('VITE_SUPABASE_URL environment variable is missing or empty.');
-  }
+  if (!url || typeof url !== 'string' || url.trim() === '') return 'https://placeholder.supabase.co';
   try {
     const parsed = new URL(url.trim());
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
@@ -12,20 +13,19 @@ const getValidUrl = (url?: string): string => {
   } catch (e) {
     // Invalid URL string
   }
-  throw new Error(`VITE_SUPABASE_URL contains invalid URL string: "${url}"`);
+  return 'https://placeholder.supabase.co';
 };
 
 const getValidKey = (key?: string): string => {
-  if (!key || typeof key !== 'string' || key.trim() === '') {
-    throw new Error('VITE_SUPABASE_ANON_KEY environment variable is missing or empty.');
-  }
+  if (!key || typeof key !== 'string' || key.trim() === '') return 'placeholder-anon-key';
   return key.trim();
 };
 
-const supabaseUrl = getValidUrl(import.meta.env.VITE_SUPABASE_URL);
-const supabaseAnonKey = getValidKey(import.meta.env.VITE_SUPABASE_ANON_KEY);
+const supabaseUrl = getValidUrl(rawUrl);
+const supabaseAnonKey = getValidKey(rawKey);
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 
  
