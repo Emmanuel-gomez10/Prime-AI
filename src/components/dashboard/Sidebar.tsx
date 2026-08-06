@@ -1,7 +1,7 @@
 import { 
   LayoutDashboard, Bot, FileUp, Image as ImageIcon, 
   BookMarked, FileQuestion, Calendar, TrendingUp, 
-  Settings, User, X, GraduationCap, PenTool, Plus, MessageSquare, Trash2 
+  Settings, User, X, GraduationCap, PenTool, Plus, MessageSquare, Trash2, ShieldAlert 
 } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 
@@ -137,6 +137,13 @@ export const Sidebar = ({ onClose }: { onClose: () => void }) => {
 
       {/* Bottom Links */}
       <div className="p-4 border-t border-divider space-y-1.5 shrink-0">
+        <button 
+          onClick={() => { window.location.href = '/admin'; }}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 transition-all duration-200 group font-semibold text-[14px]"
+        >
+          <ShieldAlert className="w-4.5 h-4.5 text-[#41E5FF]" />
+          <span>Admin Control Panel</span>
+        </button>
         {BOTTOM_ITEMS.map((item) => (
           <button 
             key={item.label}
