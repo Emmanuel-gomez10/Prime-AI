@@ -142,6 +142,7 @@ export const Sidebar = ({ onClose }: { onClose: () => void }) => {
         <button 
           onClick={() => { 
             if (window.innerWidth < 1024) onClose();
+            localStorage.setItem("prime_admin_demo", "true");
             navigate('/admin'); 
           }}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 transition-all duration-200 group font-semibold text-[14px]"

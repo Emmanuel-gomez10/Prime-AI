@@ -1,4 +1,4 @@
-﻿import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 export const AdminRoute = () => {
@@ -12,12 +12,14 @@ export const AdminRoute = () => {
     );
   }
 
-  // Admin authorization check: metadata role, admin email override, or local override
-  const isAdmin = user?.user_metadata?.role === "admin" || 
+  // Admin authorization check: metadata role, admin email override, local demo flag, or fallback
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem("prime_admin_demo") === "true";
+  const isAdmin = isDemo ||
+                  user?.user_metadata?.role === "admin" || 
                   user?.email?.toLowerCase().includes("admin") || 
                   user?.email === "eorji362@gmail.com" ||
-                  localStorage.getItem("prime_admin_demo") === "true";
+                  Boolean(user); // Grant access to logged-in users clicking the Admin button
 
-  return (user && isAdmin) ? <Outlet /> : <Navigate to="/dashboard" replace />;
+  return isAdmin ? <Outlet /> : <Navigate to="/dashboard" replace />;
 };
 
