@@ -25,9 +25,3 @@ const supabaseUrl = getValidUrl(rawUrl);
 const supabaseAnonKey = getValidKey(rawKey);
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-
-
-
-
- 
