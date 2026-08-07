@@ -114,68 +114,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    if (isConfigured()) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (data?.session) {
-        setSession(data.session as any);
-        setUser(data.session.user as any);
-      }
+    console.log('[AuthContext] Attempting Supabase signInWithPassword for:', email);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    console.log('[AuthContext] signInWithPassword response:', { data, error });
+
+    if (error) {
+      console.error('[AuthContext] signInWithPassword error:', error);
       return { data, error };
-    } else {
-      const localUser: User = { id: `local-user-${Date.now()}`, email, user_metadata: { full_name: email.split('@')[0] } };
-      const localSession: Session = { access_token: `local-token-${Date.now()}`, user: localUser };
-      setSession(localSession);
-      setUser(localUser);
-      localStorage.setItem('prime_auth_session', JSON.stringify(localSession));
-      return { data: { user: localUser, session: localSession }, error: null };
     }
+
+    if (data?.session) {
+      setSession(data.session as any);
+      setUser(data.session.user as any);
+    }
+    return { data, error: null };
   };
 
   const signup = async (email: string, password: string, profileData: { fullName: string; university?: string }) => {
-    if (isConfigured()) {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`,
-          data: {
-            full_name: profileData.fullName,
-            university: profileData.university,
-          },
+    console.log('[AuthContext] Attempting Supabase signUp for:', email);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/login`,
+        data: {
+          full_name: profileData.fullName,
+          university: profileData.university,
         },
-      });
-      if (data?.session) {
-        setSession(data.session as any);
-        setUser(data.session.user as any);
-      }
-      return { data, error };
-    } else {
-      const localUser: User = { 
-        id: `local-user-${Date.now()}`, 
-        email, 
-        user_metadata: { full_name: profileData.fullName, university: profileData.university } 
-      };
-      const localSession: Session = { access_token: `local-token-${Date.now()}`, user: localUser };
-      setSession(localSession);
-      setUser(localUser);
-      localStorage.setItem('prime_auth_session', JSON.stringify(localSession));
-      return { data: { user: localUser, session: localSession }, error: null };
+      },
+    });
+
+    console.log('[AuthContext] signUp raw response:', { data, error });
+
+    if (error) {
+      console.error('[AuthContext] signUp returned error:', error.message, error);
+      return { data: null, error };
     }
+
+    if (!data || !data.user) {
+      const err = new Error('Supabase did not return a valid user object after signup.');
+      console.error('[AuthContext]', err);
+      return { data: null, error: err };
+    }
+
+    if (data.session) {
+      setSession(data.session as any);
+      setUser(data.session.user as any);
+    }
+
+    return { data, error: null };
   };
 
+
   const logout = async () => {
-    if (isConfigured()) {
-      const { error } = await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      localStorage.removeItem('prime_auth_session');
-      return { error };
-    } else {
-      setSession(null);
-      setUser(null);
-      localStorage.removeItem('prime_auth_session');
-      return { error: null };
-    }
+    const { error } = await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
+    localStorage.removeItem('prime_auth_session');
+    return { error };
   };
 
   const resetPassword = async (email: string) => {
