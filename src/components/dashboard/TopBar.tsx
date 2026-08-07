@@ -1,6 +1,9 @@
-import { Menu, Search, Flame } from 'lucide-react';
+import { Menu, Search, Flame, ShieldAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const TopBar = ({ onMenuClick }: { onMenuClick: () => void }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="h-[72px] w-full bg-[#05050A]/80 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
       
@@ -19,7 +22,16 @@ export const TopBar = ({ onMenuClick }: { onMenuClick: () => void }) => {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 sm:gap-6">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <button
+          onClick={() => navigate('/admin')}
+          className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-full text-purple-400 hover:text-purple-300 text-[13px] font-semibold transition-all shadow-sm group"
+          title="Access Admin Control Panel"
+        >
+          <ShieldAlert className="w-4 h-4 text-[#41E5FF] group-hover:scale-110 transition-transform" />
+          <span className="hidden sm:inline">Admin Panel</span>
+        </button>
+
         <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-full text-orange-400">
           <Flame className="w-4 h-4" />
           <span className="text-[13px] font-bold">12 Days</span>

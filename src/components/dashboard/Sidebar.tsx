@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Bot, FileUp, Image as ImageIcon, 
   BookMarked, FileQuestion, Calendar, TrendingUp, 
@@ -26,6 +27,7 @@ const BOTTOM_ITEMS: { icon: any, label: string, view: ViewType }[] = [
 ];
 
 export const Sidebar = ({ onClose }: { onClose: () => void }) => {
+  const navigate = useNavigate();
   const { 
     activeView, 
     setActiveView, 
@@ -138,7 +140,10 @@ export const Sidebar = ({ onClose }: { onClose: () => void }) => {
       {/* Bottom Links */}
       <div className="p-4 border-t border-divider space-y-1.5 shrink-0">
         <button 
-          onClick={() => { window.location.href = '/admin'; }}
+          onClick={() => { 
+            if (window.innerWidth < 1024) onClose();
+            navigate('/admin'); 
+          }}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 transition-all duration-200 group font-semibold text-[14px]"
         >
           <ShieldAlert className="w-4.5 h-4.5 text-[#41E5FF]" />

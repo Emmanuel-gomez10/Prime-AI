@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { AdminProvider, useAdmin } from "./AdminContext";
 import { AdminSidebar } from "./components/AdminSidebar";
 import { AdminTopBar } from "./components/AdminTopBar";
@@ -11,7 +11,9 @@ import { AnalyticsView } from "./views/AnalyticsView";
 import { SubscriptionsView } from "./views/SubscriptionsView";
 import { SystemHealthView } from "./views/SystemHealthView";
 import { SettingsView } from "./views/SettingsView";
-import { GenericAdminView } from "./views/GenericAdminView";
+import { SupportView } from "./views/SupportView";
+import { FeatureFlagsView } from "./views/FeatureFlagsView";
+import { AdminProfileView } from "./views/AdminProfileView";
 
 const AdminContent: React.FC = () => {
   const { activeView, isSidebarCollapsed } = useAdmin();
@@ -38,11 +40,11 @@ const AdminContent: React.FC = () => {
       case "settings":
         return <SettingsView />;
       case "profile":
-        return <GenericAdminView title="Admin Profile" description="Manage your superuser administrator credentials and security tokens." />;
+        return <AdminProfileView />;
       case "support":
-        return <GenericAdminView title="Student Support Tickets" description="Review student inquiries and respond to helpdesk tickets." />;
+        return <SupportView />;
       case "feature-flags":
-        return <GenericAdminView title="Feature Flags & Experiments" description="Enable or disable experimental features in student dashboards." />;
+        return <FeatureFlagsView />;
       default:
         return <AdminOverview />;
     }
