@@ -52,11 +52,11 @@ function App() {
   element={<div>Dashboard temporarily unavailable.</div>}
 />
 
-          {/* Admin Routes (Only accessible to users with Admin role) */}
+          {/* Admin Routes (Only accessible to users with Admin role)
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<AdminPage />} />
           </Route>
-
+ */}
           {/* Catch-all fallback route to prevent 404 / white screen */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
