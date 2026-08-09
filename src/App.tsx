@@ -46,8 +46,12 @@ function App() {
 
           {/* Protected Routes (Only accessible if logged in) */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-          </Route>
+
+             
+             <Route
+                path="/dashboard"
+               element={<div>Dashboard temporarily unavailable.</div>}
+              />
 
           {/* Admin Routes (Only accessible to users with Admin role) */}
           <Route element={<AdminRoute />}>
