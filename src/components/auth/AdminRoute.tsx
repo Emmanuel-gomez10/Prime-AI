@@ -12,13 +12,12 @@ export const AdminRoute = () => {
     );
   }
 
-  // Admin authorization check: metadata role, admin email override, local demo flag, or fallback
+  // Strict admin authorization check: metadata role or specific admin email
   const isDemo = typeof window !== 'undefined' && localStorage.getItem("prime_admin_demo") === "true";
   const isAdmin = isDemo ||
                   user?.user_metadata?.role === "admin" || 
-                  user?.email?.toLowerCase().includes("admin") || 
                   user?.email === "eorji362@gmail.com" ||
-                  Boolean(user); // Grant access to logged-in users clicking the Admin button
+                  (user?.email ? user.email.toLowerCase().startsWith("admin@") : false);
 
   return isAdmin ? <Outlet /> : <Navigate to="/dashboard" replace />;
 };
