@@ -88,7 +88,7 @@ export const MainWorkspace = () => {
         activeView === 'home' 
           ? 'max-w-4xl mx-auto px-4 lg:px-8 py-8 lg:py-12 items-center justify-center scrollbar-hide' 
           : activeView === 'chat' 
-            ? 'px-4 sm:px-8 lg:px-12 pt-6 pb-36 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent' 
+            ? 'px-4 sm:px-8 lg:px-12 pt-6 pb-48 sm:pb-44 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent' 
             : 'max-w-4xl mx-auto px-4 lg:px-8 pt-6 pb-24 scrollbar-hide'
       }`}>
         
@@ -157,8 +157,8 @@ export const MainWorkspace = () => {
                 <p className="text-secondary-text text-sm max-w-md mb-6">Ask any academic question, upload lecture materials, or request step-by-step problem solutions.</p>
               </div>
             ) : (
-              <div className="space-y-6 w-full pb-6">
-                {messages.map((msg, idx) => (
+              <div className="space-y-6 w-full pb-8">
+                {messages.map((msg) => (
                   <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                     {/* Attachments preview */}
                     {msg.attachments && msg.attachments.length > 0 && (
@@ -173,55 +173,18 @@ export const MainWorkspace = () => {
                     )}
 
                     {/* Message Bubble */}
-                    <div className={`group relative rounded-2xl px-6 py-4 text-[15px] leading-relaxed w-full sm:max-w-[85%] lg:max-w-[88%] shadow-sm ${
+                    <div className={`relative text-[15px] leading-relaxed ${
                       msg.role === 'user'
-                        ? 'bg-primary text-primary-text rounded-br-none ml-auto'
-                        : 'bg-surface/80 border border-white/[0.08] text-primary-text rounded-bl-none backdrop-blur-md'
+                        ? 'w-auto max-w-[85%] sm:max-w-[75%] lg:max-w-[70%] ml-auto bg-primary text-primary-text rounded-2xl rounded-tr-sm px-5 py-3 shadow-md'
+                        : 'w-full max-w-[92%] sm:max-w-[88%] lg:max-w-[85%] mr-auto bg-transparent border-none text-primary-text px-0 py-1 shadow-none'
                     }`}>
                       {msg.role === 'model' ? (
                         <div className="prose prose-invert max-w-none text-primary-text text-[15px] leading-relaxed">
                           <Markdown>{msg.content || '...'}</Markdown>
                         </div>
                       ) : (
-                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                        <span className="whitespace-pre-wrap font-medium">{msg.content}</span>
                       )}
-
-                      {/* Action Bar */}
-                      <div className={`mt-2.5 flex items-center gap-3 pt-2 border-t border-white/[0.08] text-xs text-secondary-text ${
-                        msg.role === 'user' ? 'justify-end text-primary-text/70' : 'justify-between'
-                      }`}>
-                        <span className="text-[11px]">
-                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => copyToClipboard(msg.content, msg.id)}
-                            className="hover:text-primary-text p-1 rounded transition-colors"
-                            title="Copy text"
-                          >
-                            {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          </button>
-                          
-                          {msg.role === 'model' && idx === messages.length - 1 && (
-                            <button
-                              onClick={regenerateLastMessage}
-                              className="hover:text-primary-text p-1 rounded transition-colors"
-                              title="Regenerate response"
-                            >
-                              <RefreshCw className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => deleteMessage(msg.id)}
-                            className="hover:text-red-400 p-1 rounded transition-colors"
-                            title="Delete message"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -240,7 +203,7 @@ export const MainWorkspace = () => {
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} className="h-4 shrink-0" />
+            <div ref={messagesEndRef} className="h-10 shrink-0" />
           </div>
         ) : activeView === 'study-fetch' ? (
           <StudyFetchView />

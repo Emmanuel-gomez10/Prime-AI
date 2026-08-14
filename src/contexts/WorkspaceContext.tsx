@@ -357,7 +357,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
       const errorMsg: Message = {
         id: errorMsgId,
         role: 'model',
-        content: `I encountered an issue processing your request: ${error?.message || 'Unknown error'}. Please verify your network connection or API key.`,
+        content: `I encountered an issue processing your request.`,
         timestamp: Date.now(),
       };
 
