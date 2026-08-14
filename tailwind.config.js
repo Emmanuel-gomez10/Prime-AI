@@ -12,9 +12,12 @@ export default {
         surface: 'rgb(var(--surface-color) / <alpha-value>)',
         'primary-text': 'rgb(var(--text-primary) / <alpha-value>)',
         'secondary-text': 'rgb(var(--text-secondary) / <alpha-value>)',
+        textPrimary: 'rgb(var(--text-primary) / <alpha-value>)',
+        textSecondary: 'rgb(var(--text-secondary) / <alpha-value>)',
         divider: 'rgb(var(--border-color) / 0.1)',
         'card-hover': 'rgb(var(--card-hover) / 0.05)',
         primary: '#a855f7',
+        secondary: '#8b5cf6',
         accent: '#41E5FF',
       },
       borderRadius: {
