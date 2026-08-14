@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, sanitizeUrl } from '../lib/supabaseClient';
 
 export interface User {
   id: string;
@@ -40,18 +40,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const isConfigured = () => {
-    const url = import.meta.env.VITE_SUPABASE_URL || "https://knvilxppzhugfhbltukp.supabase.co";
+    const rawUrl = import.meta.env.VITE_SUPABASE_URL || "https://knvilxppzhugfhbltukp.supabase.co";
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_O5lUeI22TPUrbefwyTwsTQ_oFrVF3CF";
-    if (!url || typeof url !== 'string' || !key || typeof key !== 'string') return false;
+    const url = sanitizeUrl(rawUrl);
+    if (!url || !key || typeof key !== 'string') return false;
     if (key.includes('placeholder') || key.includes('your-anon-key')) return false;
-    try {
-      const parsed = new URL(url.trim());
-      return (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
-             !url.includes('placeholder') &&
-             !url.includes('your-project');
-    } catch {
-      return false;
-    }
+    return !url.includes('placeholder') && !url.includes('your-project');
   };
 
   useEffect(() => {
