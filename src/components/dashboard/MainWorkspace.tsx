@@ -1,6 +1,6 @@
 import { 
   HelpCircle, Image as ImageIcon, Plus, Mic, ArrowRight, Search, FileText, 
-  Upload, BookOpen, PenTool, Lightbulb, Copy, RefreshCw, Trash2, Check, File, MicOff, Paperclip, X
+  Upload, BookOpen, PenTool, Lightbulb, File, MicOff, Paperclip, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useState, useRef, useEffect } from 'react';
@@ -45,13 +45,10 @@ export const MainWorkspace = () => {
     messages, 
     isTyping, 
     sendMessage, 
-    deleteMessage,
-    regenerateLastMessage,
     createNewThread
   } = useWorkspace();
   
   const [inputText, setInputText] = useState('');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleSend = () => {
@@ -66,12 +63,6 @@ export const MainWorkspace = () => {
       e.preventDefault();
       handleSend();
     }
-  };
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
   };
 
   useEffect(() => {
