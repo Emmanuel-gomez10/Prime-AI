@@ -36,16 +36,16 @@ function App() {
       <WorkspaceProvider>
         <BrowserRouter>
           <Routes>
-          {/* Public Route */}
+          {/* Public Routes */}
           <Route path="/" element={<Home />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<EmailVerification />} />
           
           {/* Guest Routes (Only accessible if NOT logged in) */}
           <Route element={<GuestRoute />}>
             <Route path="/signup" element={<SignUp />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/verify-email" element={<EmailVerification />} />
           </Route>
 
           {/* Protected Routes (Only accessible if logged in) */}

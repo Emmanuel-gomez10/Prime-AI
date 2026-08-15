@@ -16,9 +16,11 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export const Login = () => {
-  const { login, signInWithGoogle } = useAuth();
+  const { login, signInWithGoogle, resendVerificationEmail } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema)
@@ -26,20 +28,36 @@ export const Login = () => {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
+    setUnverifiedEmail(null);
     const { error } = await login(data.email, data.password);
     setIsSubmitting(false);
 
     if (error) {
-      if (error.message.toLowerCase().includes('email not confirmed')) {
-        toast.error('Please verify your email address first.');
-      } else if (error.message.toLowerCase().includes('invalid login credentials')) {
+      const errMsg = error.message.toLowerCase();
+      if (errMsg.includes('email not confirmed') || errMsg.includes('unconfirmed')) {
+        setUnverifiedEmail(data.email);
+        toast.error('Your email address has not been verified yet.');
+      } else if (errMsg.includes('invalid login credentials') || errMsg.includes('invalid email or password')) {
         toast.error('Invalid email or password.');
       } else {
-        toast.error(error.message || 'Error logging in');
+        toast.error('Unable to log in. Please check your details and try again.');
       }
     } else {
       toast.success('Welcome back!');
       navigate('/dashboard');
+    }
+  };
+
+  const handleResendUnverified = async () => {
+    if (!unverifiedEmail) return;
+    setIsResending(true);
+    const { error } = await resendVerificationEmail(unverifiedEmail);
+    setIsResending(false);
+    if (error) {
+      toast.error('Failed to resend verification email. Please try again later.');
+    } else {
+      toast.success('Verification email sent! Please check your inbox.');
+      navigate('/verify-email', { state: { email: unverifiedEmail } });
     }
   };
 
@@ -238,6 +256,20 @@ export const Login = () => {
                   Forgot Password?
                 </Link>
               </div>
+
+              {unverifiedEmail && (
+                <div className="p-3 bg-[#7C3AED]/10 border border-[#7C3AED]/30 rounded-xl flex flex-col items-center gap-2 text-center text-xs">
+                  <p className="text-primary-text">Account not verified yet.</p>
+                  <button
+                    type="button"
+                    onClick={handleResendUnverified}
+                    disabled={isResending}
+                    className="px-3 py-1.5 rounded-lg bg-[#7C3AED] hover:bg-[#7C3AED]/90 text-white font-medium transition-all disabled:opacity-50"
+                  >
+                    {isResending ? 'Resending...' : 'Resend Verification Email'}
+                  </button>
+                </div>
+              )}
 
               <button 
                 type="submit"

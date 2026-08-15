@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   study_level TEXT DEFAULT 'Undergraduate (100 Level)',
   learning_style TEXT DEFAULT 'Visual & Active Recall',
   avatar_url TEXT,
+  is_admin BOOLEAN DEFAULT FALSE,
+  role TEXT DEFAULT 'student',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

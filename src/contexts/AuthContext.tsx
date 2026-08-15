@@ -54,6 +54,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       supabase.auth.getSession().then(({ data: { session }, error }) => {
         if (error) {
           console.error("Supabase getSession error:", error);
+          if (error.message?.toLowerCase().includes('refresh_token') || error.message?.toLowerCase().includes('invalid_grant')) {
+            supabase.auth.signOut().catch(() => {});
+            localStorage.removeItem('prime_auth_session');
+            setSession(null);
+            setUser(null);
+          }
         }
         if (session) {
           setSession(session as any);
@@ -65,21 +71,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       }).catch(err => {
         console.error("Failed to fetch Supabase session:", err);
+        supabase.auth.signOut().catch(() => {});
+        localStorage.removeItem('prime_auth_session');
         setSession(null);
         setUser(null);
         setLoading(false);
       });
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session as any);
-        setUser(session?.user as any || null);
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+          setSession(null);
+          setUser(null);
+          localStorage.removeItem('prime_auth_session');
+        } else if (session) {
+          setSession(session as any);
+          setUser(session.user as any);
+        } else {
+          setSession(null);
+          setUser(null);
+        }
         setLoading(false);
       });
 
       // Guard timer so loading state never hangs
       const timeout = setTimeout(() => {
         setLoading(false);
-      }, 3000);
+      }, 2500);
 
       return () => {
         subscription?.unsubscribe();

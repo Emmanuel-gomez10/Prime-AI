@@ -20,15 +20,16 @@ export const AdminRoute = () => {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("is_admin")
+        .select("is_admin, role")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Admin authorization check failed:", error);
-        setIsAdmin(false);
+        setIsAdmin(user?.user_metadata?.role === 'admin');
       } else {
-        setIsAdmin(data?.is_admin === true);
+        const isAdminUser = data?.is_admin === true || data?.role === 'admin' || user?.user_metadata?.role === 'admin';
+        setIsAdmin(isAdminUser);
       }
 
       setCheckingAdmin(false);
