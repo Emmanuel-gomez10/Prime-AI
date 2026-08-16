@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { 
   Users, 
@@ -15,27 +15,38 @@ import {
   ArrowDownRight, 
   Sparkles, 
   Activity, 
-  Plus, 
-  Megaphone, 
-  Sliders, 
-  UserX, 
-  Send 
+  Megaphone,
+  Loader2
 } from "lucide-react";
 import { useAdmin } from "../AdminContext";
+import { adminService } from "../../services/admin/adminService";
+import type { AdminOverviewMetrics } from "../../services/admin/adminService";
 
 export const AdminOverview: React.FC = () => {
   const { setActiveView } = useAdmin();
+  const [metrics, setMetrics] = useState<AdminOverviewMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      setLoading(true);
+      const data = await adminService.getOverviewMetrics();
+      setMetrics(data);
+      setLoading(false);
+    };
+    fetchMetrics();
+  }, []);
 
   const kpiCards = [
-    { title: "Total Users", value: "14,892", change: "+12.4%", isPositive: true, icon: Users, color: "from-[#7C3AED] to-[#9333EA]" },
-    { title: "Active Users Today", value: "3,420", change: "+8.1%", isPositive: true, icon: UserCheck, color: "from-blue-600 to-cyan-500" },
-    { title: "AI Requests Today", value: "89,410", change: "+24.3%", isPositive: true, icon: Cpu, color: "from-purple-600 to-pink-500" },
-    { title: "Uploaded PDFs", value: "6,210", change: "+5.7%", isPositive: true, icon: FileText, color: "from-emerald-600 to-teal-500" },
-    { title: "Generated Flashcards", value: "142,800", change: "+18.2%", isPositive: true, icon: BookMarked, color: "from-amber-500 to-orange-500" },
-    { title: "Generated Quizzes", value: "28,450", change: "+14.9%", isPositive: true, icon: FileQuestion, color: "from-indigo-600 to-blue-500" },
-    { title: "Storage Usage", value: "482 GB / 1 TB", change: "48% utilized", isPositive: true, icon: HardDrive, color: "from-slate-600 to-slate-800" },
-    { title: "Premium Subscribers", value: "1,840", change: "+9.3%", isPositive: true, icon: Crown, color: "from-amber-400 to-yellow-600" },
-    { title: "Monthly Revenue", value: "$18,400", change: "+15.8%", isPositive: true, icon: DollarSign, color: "from-emerald-500 to-green-600" },
+    { title: "Total Users", value: metrics ? metrics.totalUsers.toLocaleString() : "...", change: "Real-time", isPositive: true, icon: Users, color: "from-[#7C3AED] to-[#9333EA]" },
+    { title: "Active Users Today", value: metrics ? metrics.activeUsersToday.toLocaleString() : "...", change: "Live", isPositive: true, icon: UserCheck, color: "from-blue-600 to-cyan-500" },
+    { title: "AI Requests Today", value: metrics ? metrics.aiRequestsToday.toLocaleString() : "...", change: "Live", isPositive: true, icon: Cpu, color: "from-purple-600 to-pink-500" },
+    { title: "Uploaded PDFs", value: metrics ? metrics.totalPdfs.toLocaleString() : "...", change: "Live", isPositive: true, icon: FileText, color: "from-emerald-600 to-teal-500" },
+    { title: "Generated Flashcards", value: metrics ? metrics.totalFlashcards.toLocaleString() : "...", change: "Live", isPositive: true, icon: BookMarked, color: "from-amber-500 to-orange-500" },
+    { title: "Generated Quizzes", value: metrics ? metrics.totalQuizzes.toLocaleString() : "...", change: "Live", isPositive: true, icon: FileQuestion, color: "from-indigo-600 to-blue-500" },
+    { title: "Total AI Usage Logs", value: metrics ? metrics.totalUsage.toLocaleString() : "...", change: "Recorded", isPositive: true, icon: HardDrive, color: "from-slate-600 to-slate-800" },
+    { title: "Premium Subscribers", value: metrics ? metrics.premiumSubscribers.toLocaleString() : "...", change: "Active", isPositive: true, icon: Crown, color: "from-amber-400 to-yellow-600" },
+    { title: "Est. Monthly Revenue", value: metrics ? `$${metrics.monthlyRevenue.toLocaleString()}` : "...", change: "Live", isPositive: true, icon: DollarSign, color: "from-emerald-500 to-green-600" },
   ];
 
   const recentActivities = [

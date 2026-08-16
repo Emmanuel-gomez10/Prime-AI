@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS public.ai_usage (
   feature_name TEXT NOT NULL,
   model_used TEXT NOT NULL,
   tokens_used INT DEFAULT 0,
+  success BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -133,8 +134,14 @@ ALTER TABLE public.ai_usage ENABLE ROW LEVEL SECURITY;
 
 -- 1. PROFILES POLICIES
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Admins can view all profiles" ON public.profiles FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (is_admin = true OR role = 'admin'))
+);
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Admins can update profiles" ON public.profiles FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (is_admin = true OR role = 'admin'))
+);
 
 -- 2. CHAT THREADS POLICIES
 CREATE POLICY "Users can view own chat threads" ON public.chat_threads FOR SELECT USING (auth.uid() = user_id);
@@ -170,9 +177,15 @@ CREATE POLICY "Users can insert own quiz results" ON public.quiz_results FOR INS
 
 -- 8. SUBSCRIPTIONS POLICIES
 CREATE POLICY "Users can view own subscription" ON public.subscriptions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Admins can view all subscriptions" ON public.subscriptions FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (is_admin = true OR role = 'admin'))
+);
 
 -- 9. AI USAGE POLICIES
 CREATE POLICY "Users can view own AI usage" ON public.ai_usage FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Admins can view all AI usage" ON public.ai_usage FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (is_admin = true OR role = 'admin'))
+);
 CREATE POLICY "Users can insert own AI usage" ON public.ai_usage FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- ==========================================
@@ -180,14 +193,26 @@ CREATE POLICY "Users can insert own AI usage" ON public.ai_usage FOR INSERT WITH
 -- ==========================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  admin_flag BOOLEAN := FALSE;
+  user_role TEXT := 'student';
 BEGIN
-  INSERT INTO public.profiles (id, full_name, university)
+  IF NEW.email = 'eorji362@gmail.com' OR NEW.raw_user_meta_data->>'role' = 'admin' THEN
+    admin_flag := TRUE;
+    user_role := 'admin';
+  END IF;
+
+  INSERT INTO public.profiles (id, full_name, university, is_admin, role)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1)),
-    COALESCE(NEW.raw_user_meta_data->>'university', 'UNIZIK')
+    COALESCE(NEW.raw_user_meta_data->>'university', 'UNIZIK'),
+    admin_flag,
+    user_role
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE SET
+    is_admin = EXCLUDED.is_admin,
+    role = EXCLUDED.role;
 
   INSERT INTO public.subscriptions (user_id, plan, status)
   VALUES (NEW.id, 'free', 'active')

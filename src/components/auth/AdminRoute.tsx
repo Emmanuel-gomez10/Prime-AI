@@ -26,9 +26,9 @@ export const AdminRoute = () => {
 
       if (error) {
         console.error("Admin authorization check failed:", error);
-        setIsAdmin(user?.user_metadata?.role === 'admin');
+        setIsAdmin(false);
       } else {
-        const isAdminUser = data?.is_admin === true || data?.role === 'admin' || user?.user_metadata?.role === 'admin';
+        const isAdminUser = data?.is_admin === true || data?.role === "admin";
         setIsAdmin(isAdminUser);
       }
 

@@ -2,6 +2,22 @@ import OpenAI from 'openai';
 import { AI_CONFIG, getApiKey } from '../../config/ai';
 import { aiLogger } from './logger';
 import { categorizeAIError } from './errorCategorizer';
+import { supabase } from '../../lib/supabaseClient';
+
+export async function logAiUsageEvent(featureName: string, modelUsed: string, success: boolean = true) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) return;
+    await supabase.from('ai_usage').insert({
+      user_id: session.user.id,
+      feature_name: featureName || 'AI Tutor',
+      model_used: modelUsed || 'gpt-4o-mini',
+      success,
+    });
+  } catch (err) {
+    console.error('Failed to log AI usage event:', err);
+  }
+}
 
 export interface AIServiceAttachment {
   name: string;
@@ -163,7 +179,7 @@ class AIService {
         });
 
         return {
-          stream: this.createAsyncGenerator(rawStream),
+          stream: this.createAsyncGenerator(rawStream, request.featureName, modelName),
           usedModel: modelName,
         };
 
@@ -178,6 +194,8 @@ class AIService {
           errorType: categorized.category,
           errorMessage: categorized.rawMessage,
         });
+
+        logAiUsageEvent(request.featureName, modelName, false).catch(() => {});
 
         // If candidate failed and there is a next candidate in fallback chain, log & continue loop
         if (i < candidateModels.length - 1 && categorized.isRetryable) {
@@ -197,12 +215,24 @@ class AIService {
     throw new Error(finalCategorized.userMessage);
   }
 
-  private async *createAsyncGenerator(stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>): AsyncGenerator<string, void, unknown> {
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content;
-      if (text) {
-        yield text;
+  private async *createAsyncGenerator(
+    stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>,
+    featureName: string,
+    modelName: string
+  ): AsyncGenerator<string, void, unknown> {
+    try {
+      for await (const chunk of stream) {
+        const text = chunk.choices[0]?.delta?.content;
+        if (text) {
+          yield text;
+        }
       }
+      // Stream completed successfully - record completed usage event
+      logAiUsageEvent(featureName, modelName, true).catch(() => {});
+    } catch (err) {
+      // Stream failed mid-transmission - record failed usage event
+      logAiUsageEvent(featureName, modelName, false).catch(() => {});
+      throw err;
     }
   }
 }

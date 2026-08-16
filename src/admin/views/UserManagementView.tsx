@@ -1,38 +1,33 @@
-﻿import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { 
   Search, 
   Filter, 
   UserCheck, 
   UserX, 
   Shield, 
-  Key
+  Key,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
-
-interface UserRecord {
-  id: string;
-  name: string;
-  email: string;
-  university: string;
-  role: "student" | "admin";
-  status: "active" | "suspended";
-  plan: "Free" | "Premium" | "Enterprise";
-  joinedDate: string;
-  requestsCount: number;
-}
-
-const mockUsers: UserRecord[] = [
-  { id: "usr_101", name: "David Okon", email: "david.o@unilag.edu.ng", university: "University of Lagos", role: "student", status: "active", plan: "Premium", joinedDate: "2026-08-01", requestsCount: 342 },
-  { id: "usr_102", name: "Sarah Jenkins", email: "sarah.j@cambridge.ac.uk", university: "University of Cambridge", role: "student", status: "active", plan: "Enterprise", joinedDate: "2026-07-28", requestsCount: 1240 },
-  { id: "usr_103", name: "Emmanuel Gomez", email: "eorji362@gmail.com", university: "Prime AI Lead", role: "admin", status: "active", plan: "Enterprise", joinedDate: "2026-06-15", requestsCount: 5820 },
-  { id: "usr_104", name: "Michael Chen", email: "mchen@stanford.edu", university: "Stanford University", role: "student", status: "suspended", plan: "Free", joinedDate: "2026-08-03", requestsCount: 12 },
-  { id: "usr_105", name: "Amara Nnaji", email: "amara@ui.edu.ng", university: "University of Ibadan", role: "student", status: "active", plan: "Premium", joinedDate: "2026-07-19", requestsCount: 610 },
-];
+import { adminService } from "../../services/admin/adminService";
+import type { RealUserRecord } from "../../services/admin/adminService";
 
 export const UserManagementView: React.FC = () => {
-  const [users, setUsers] = useState<UserRecord[]>(mockUsers);
+  const [users, setUsers] = useState<RealUserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+
+  const loadUsers = async () => {
+    setLoading(true);
+    const data = await adminService.getUsersList();
+    setUsers(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -42,26 +37,26 @@ export const UserManagementView: React.FC = () => {
     return matchesSearch && matchesRole;
   });
 
-  const handleToggleStatus = (id: string) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === id) {
-        const nextStatus = u.status === "active" ? "suspended" : "active";
-        toast.success(`User ${u.name} status updated to ${nextStatus}`);
-        return { ...u, status: nextStatus };
-      }
-      return u;
-    }));
+  const handleToggleStatus = async (id: string, currentStatus: "active" | "suspended", name: string) => {
+    const nextStatus = currentStatus === "active" ? "suspended" : "active";
+    const ok = await adminService.updateUserStatus(id, nextStatus);
+    if (ok) {
+      toast.success(`User ${name} status updated to ${nextStatus}`);
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, status: nextStatus } : u));
+    } else {
+      toast.error(`Failed to update status for ${name}`);
+    }
   };
 
-  const handleToggleRole = (id: string) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === id) {
-        const nextRole = u.role === "admin" ? "student" : "admin";
-        toast.success(`${u.name} assigned ${nextRole} role`);
-        return { ...u, role: nextRole };
-      }
-      return u;
-    }));
+  const handleToggleRole = async (id: string, currentRole: "student" | "admin", name: string) => {
+    const nextRole = currentRole === "admin" ? "student" : "admin";
+    const ok = await adminService.updateUserRole(id, nextRole);
+    if (ok) {
+      toast.success(`${name} assigned ${nextRole} role`);
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role: nextRole } : u));
+    } else {
+      toast.error(`Failed to update role for ${name}`);
+    }
   };
 
   const handleResetPassword = (email: string) => {
@@ -174,7 +169,7 @@ export const UserManagementView: React.FC = () => {
                   <td className="py-3.5 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => handleToggleRole(u.id)}
+                        onClick={() => handleToggleRole(u.id, u.role, u.name)}
                         className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white"
                         title="Toggle Admin/Student Role"
                       >
@@ -190,7 +185,7 @@ export const UserManagementView: React.FC = () => {
                       </button>
 
                       <button
-                        onClick={() => handleToggleStatus(u.id)}
+                        onClick={() => handleToggleStatus(u.id, u.status, u.name)}
                         className={`p-1.5 rounded-lg border ${
                           u.status === "active"
                             ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30"
