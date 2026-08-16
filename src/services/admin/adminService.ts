@@ -148,6 +148,71 @@ export const adminService = {
   },
 
   /**
+   * Fetches real subscription tier metrics and pricing/limit configuration from Supabase.
+   */
+  async getSubscriptionMetrics() {
+    try {
+      // 1. Total Free Tier Students
+      const { count: freeCount } = await supabase
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true })
+        .or("plan.eq.free,plan.is.null")
+        .eq("status", "active");
+
+      // Count profiles with no subscription record at all as free tier
+      const { count: totalProfiles } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true });
+
+      const { count: totalSubs } = await supabase
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true });
+
+      const missingSubCount = Math.max(0, (totalProfiles || 0) - (totalSubs || 0));
+      const actualFreeCount = (freeCount || 0) + missingSubCount;
+
+      // 2. Active Premium Pro Subscribers
+      const { count: premiumCount } = await supabase
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true })
+        .ilike("plan", "%premium%")
+        .eq("status", "active");
+
+      // 3. Enterprise Accounts
+      const { count: enterpriseCount } = await supabase
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true })
+        .ilike("plan", "%enterprise%")
+        .eq("status", "active");
+
+      // 4. Read system settings for limits
+      const settings = await this.getSystemSettings();
+      const dailyLimit = settings.daily_request_limit || 50;
+
+      // Calculate MRR ($10 / month per premium subscriber)
+      const activePremium = premiumCount || 0;
+      const mrr = activePremium * 10;
+
+      return {
+        freeCount: actualFreeCount,
+        premiumCount: activePremium,
+        enterpriseCount: enterpriseCount || 0,
+        mrr,
+        dailyLimit,
+      };
+    } catch (error) {
+      console.error("Failed to fetch subscription metrics:", error);
+      return {
+        freeCount: 0,
+        premiumCount: 0,
+        enterpriseCount: 0,
+        mrr: 0,
+        dailyLimit: 50,
+      };
+    }
+  },
+
+  /**
    * Fetches real user list from Supabase profiles table.
    */
   async getUsersList(): Promise<RealUserRecord[]> {
