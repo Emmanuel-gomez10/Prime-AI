@@ -92,6 +92,81 @@ class AIService {
       });
     }
 
+    // Check user account status and feature flags / system maintenance controls before execution
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      // 1. Check user status (suspended)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("status, is_admin, role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (profile?.status === "suspended") {
+        throw new Error("Your student account is currently suspended. Please contact support.");
+      }
+
+      const isAdmin = Boolean(profile?.is_admin || profile?.role === "admin");
+
+      // 2. Check System Settings (maintenance_mode, daily_request_limit)
+      const { data: settingsData } = await supabase
+        .from("system_settings")
+        .select("key, value");
+
+      const settingsMap: Record<string, any> = {};
+      if (settingsData) {
+        for (const s of settingsData) {
+          settingsMap[s.key] = s.value;
+        }
+      }
+
+      if (settingsMap.maintenance_mode === true && !isAdmin) {
+        throw new Error("Prime AI is currently undergoing scheduled maintenance. Please check back shortly.");
+      }
+
+      // Sync active primary / fallback model from DB settings if set
+      if (settingsMap.primary_model) {
+        AI_CONFIG.primaryModel = settingsMap.primary_model;
+      }
+      if (settingsMap.fallback_model) {
+        AI_CONFIG.fallbackModels = [settingsMap.fallback_model];
+      }
+
+      // 3. Feature Flags check
+      if (settingsMap.feature_flags && Array.isArray(settingsMap.feature_flags)) {
+        const flagKeyMap: Record<string, string> = {
+          tutor: "ai_tutor",
+          "study-fetch": "study_summarizer",
+          flashcards: "flashcards",
+          "image-solver": "image_solver",
+          quiz: "quiz_generator",
+          essay: "essay_writer",
+        };
+        const flagKey = flagKeyMap[request.featureName] || request.featureName;
+        const targetFlag = settingsMap.feature_flags.find((f: any) => f.key === flagKey || f.name.toLowerCase() === request.featureName.toLowerCase());
+        if (targetFlag && targetFlag.enabled === false) {
+          throw new Error(`The ${targetFlag.name || request.featureName} feature is currently disabled by administrator policy.`);
+        }
+      }
+
+      // 4. Daily AI Request Limit Check against real ai_usage table
+      const dailyLimit = typeof settingsMap.daily_request_limit === "number" ? settingsMap.daily_request_limit : 50;
+      if (!isAdmin && dailyLimit > 0) {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const { count } = await supabase
+          .from("ai_usage")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", session.user.id)
+          .gte("created_at", todayStart.toISOString());
+
+        if ((count || 0) >= dailyLimit) {
+          throw new Error(`You have reached your daily limit of ${dailyLimit} AI requests. Upgrade or try again tomorrow.`);
+        }
+      }
+    }
+
     // Candidate fallback chain: Primary model first, followed by configured fallback candidates
     const candidateModels = Array.from(
       new Set([AI_CONFIG.primaryModel, ...AI_CONFIG.fallbackModels])

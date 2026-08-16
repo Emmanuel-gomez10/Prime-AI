@@ -1,46 +1,50 @@
-﻿import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Megaphone, Trash2, Bell } from "lucide-react";
 import { toast } from "sonner";
-
-interface Announcement {
-  id: string;
-  title: string;
-  message: string;
-  target: "All Students" | "Premium Only" | "Free Tier";
-  status: "Active" | "Scheduled" | "Archived";
-  date: string;
-}
+import { adminService } from "../../services/admin/adminService";
+import type { AnnouncementRecord } from "../../services/admin/adminService";
 
 export const AnnouncementsView: React.FC = () => {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([
-    { id: "anc_1", title: "🚀 New Feature: Essay Writer AI Mode", message: "Generate outline structures and improve academic grammar with our new Essay Writer tool inside your dashboard.", target: "All Students", status: "Active", date: "2026-08-05" },
-    { id: "anc_2", title: "⚡ Planned Maintenance Window", message: "Supabase database optimization scheduled for Saturday at 02:00 UTC.", target: "All Students", status: "Scheduled", date: "2026-08-10" },
-  ]);
-
+  const [announcements, setAnnouncements] = useState<AnnouncementRecord[]>([]);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [target, setTarget] = useState<"All Students" | "Premium Only" | "Free Tier">("All Students");
+  const [loading, setLoading] = useState(true);
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !message.trim()) return;
-    const newAnc: Announcement = {
-      id: `anc_${Date.now()}`,
-      title,
-      message,
-      target,
-      status: "Active",
-      date: new Date().toISOString().split("T")[0]
-    };
-    setAnnouncements([newAnc, ...announcements]);
-    setTitle("");
-    setMessage("");
-    toast.success("Broadcast announcement created and pushed live!");
+  const loadAnnouncements = async () => {
+    setLoading(true);
+    const data = await adminService.getAnnouncements();
+    setAnnouncements(data);
+    setLoading(false);
   };
 
-  const handleDelete = (id: string) => {
-    setAnnouncements(prev => prev.filter(a => a.id !== id));
-    toast.success("Announcement deleted");
+  useEffect(() => {
+    loadAnnouncements();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !message.trim()) return;
+
+    const ok = await adminService.createAnnouncement(title, message, target);
+    if (ok) {
+      toast.success("Broadcast announcement created and saved to database!");
+      setTitle("");
+      setMessage("");
+      loadAnnouncements();
+    } else {
+      toast.error("Failed to post announcement");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const ok = await adminService.deleteAnnouncement(id);
+    if (ok) {
+      toast.success("Announcement removed");
+      setAnnouncements(prev => prev.filter(a => a.id !== id));
+    } else {
+      toast.error("Failed to delete announcement");
+    }
   };
 
   return (
@@ -108,29 +112,34 @@ export const AnnouncementsView: React.FC = () => {
 
       <div className="space-y-3">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider">Active & Scheduled Broadcasts</h3>
-        {announcements.map((anc) => (
-          <div key={anc.id} className="rounded-2xl bg-[#121428]/80 backdrop-blur-xl border border-white/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-white text-sm">{anc.title}</span>
-                <span className="px-2 py-0.5 rounded-full bg-[#41E5FF]/20 text-[#41E5FF] text-[10px] font-semibold border border-[#41E5FF]/30">
-                  {anc.target}
-                </span>
+        {loading ? (
+          <div className="py-8 text-center text-gray-400">Loading broadcasts...</div>
+        ) : announcements.length === 0 ? (
+          <div className="py-8 text-center text-gray-400">No active announcements.</div>
+        ) : (
+          announcements.map((anc) => (
+            <div key={anc.id} className="rounded-2xl bg-[#121428]/80 backdrop-blur-xl border border-white/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-sm">{anc.title}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#41E5FF]/20 text-[#41E5FF] text-[10px] font-semibold border border-[#41E5FF]/30">
+                    {anc.target}
+                  </span>
+                </div>
+                <p className="text-gray-300 text-xs">{anc.message}</p>
+                <span className="text-[10px] text-gray-500 block">Published: {anc.date}</span>
               </div>
-              <p className="text-gray-300 text-xs">{anc.message}</p>
-              <span className="text-[10px] text-gray-500 block">Published: {anc.date}</span>
-            </div>
 
-            <button
-              onClick={() => handleDelete(anc.id)}
-              className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 self-start sm:self-center"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
+              <button
+                onClick={() => handleDelete(anc.id)}
+                className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 self-start sm:self-center"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 };
-

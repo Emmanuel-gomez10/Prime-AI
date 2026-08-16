@@ -5,7 +5,8 @@ import {
   UserCheck, 
   UserX, 
   Shield, 
-  Key
+  Key,
+  Crown
 } from "lucide-react";
 import { toast } from "sonner";
 import { adminService } from "../../services/admin/adminService";
@@ -13,7 +14,7 @@ import type { RealUserRecord } from "../../services/admin/adminService";
 
 export const UserManagementView: React.FC = () => {
   const [users, setUsers] = useState<RealUserRecord[]>([]);
-  const [_loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
 
@@ -58,8 +59,19 @@ export const UserManagementView: React.FC = () => {
     }
   };
 
+  const handleTogglePlan = async (id: string, currentPlan: string, name: string) => {
+    const nextPlan = currentPlan === "Premium" ? "free" : "premium";
+    const ok = await adminService.updateUserPlan(id, nextPlan);
+    if (ok) {
+      toast.success(`${name} plan changed to ${nextPlan.toUpperCase()}`);
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, plan: nextPlan === "premium" ? "Premium" : "Free" } : u));
+    } else {
+      toast.error(`Failed to update plan for ${name}`);
+    }
+  };
+
   const handleResetPassword = (email: string) => {
-    toast.success(`Password reset email sent to ${email}`);
+    toast.success(`Password reset notification initialized for ${email}`);
   };
 
   return (
@@ -67,7 +79,7 @@ export const UserManagementView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">User Management</h1>
-          <p className="text-gray-400 text-xs mt-1">Search, inspect, manage roles, and monitor student platform activity.</p>
+          <p className="text-gray-400 text-xs mt-1">Search, inspect, manage roles, suspend accounts, and view individual student platform usage.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -114,90 +126,108 @@ export const UserManagementView: React.FC = () => {
                 <th className="py-3.5 px-4">Role</th>
                 <th className="py-3.5 px-4">Plan</th>
                 <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">AI Usage</th>
+                <th className="py-3.5 px-4">AI Requests</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-gray-300">
-              {filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="py-3.5 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#7C3AED] to-[#41E5FF] flex items-center justify-center font-bold text-white shrink-0">
-                        {u.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">{u.name}</div>
-                        <div className="text-[11px] text-gray-400">{u.email}</div>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="py-3.5 px-4 font-medium text-gray-300">{u.university}</td>
-
-                  <td className="py-3.5 px-4">
-                    <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] uppercase border ${
-                      u.role === "admin" 
-                        ? "bg-purple-500/20 text-purple-300 border-purple-500/40" 
-                        : "bg-gray-500/10 text-gray-300 border-gray-500/20"
-                    }`}>
-                      {u.role}
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-4">
-                    <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${
-                      u.plan === "Enterprise" ? "bg-amber-500/20 text-amber-300" :
-                      u.plan === "Premium" ? "bg-[#41E5FF]/20 text-[#41E5FF]" : "bg-gray-500/20 text-gray-400"
-                    }`}>
-                      {u.plan}
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      u.status === "active" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${u.status === "active" ? "bg-emerald-400" : "bg-rose-400"}`} />
-                      {u.status}
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-4 font-mono text-gray-400">{u.requestsCount} reqs</td>
-
-                  <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleToggleRole(u.id, u.role, u.name)}
-                        className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white"
-                        title="Toggle Admin/Student Role"
-                      >
-                        <Shield className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        onClick={() => handleResetPassword(u.email)}
-                        className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white"
-                        title="Send Password Reset"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleStatus(u.id, u.status, u.name)}
-                        className={`p-1.5 rounded-lg border ${
-                          u.status === "active"
-                            ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30"
-                            : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        }`}
-                        title={u.status === "active" ? "Suspend User" : "Activate User"}
-                      >
-                        {u.status === "active" ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </td>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-400">Loading user profiles...</td>
                 </tr>
-              ))}
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-400">No matching users found.</td>
+                </tr>
+              ) : (
+                filteredUsers.map((u) => (
+                  <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#7C3AED] to-[#41E5FF] flex items-center justify-center font-bold text-white shrink-0">
+                          {u.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-white">{u.name}</div>
+                          <div className="text-[11px] text-gray-400">{u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4 font-medium text-gray-300">{u.university}</td>
+
+                    <td className="py-3.5 px-4">
+                      <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] uppercase border ${
+                        u.role === "admin" 
+                          ? "bg-purple-500/20 text-purple-300 border-purple-500/40" 
+                          : "bg-gray-500/10 text-gray-300 border-gray-500/20"
+                      }`}>
+                        {u.role}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${
+                        u.plan === "Enterprise" ? "bg-amber-500/20 text-amber-300" :
+                        u.plan === "Premium" ? "bg-[#41E5FF]/20 text-[#41E5FF]" : "bg-gray-500/20 text-gray-400"
+                      }`}>
+                        {u.plan}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        u.status === "active" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${u.status === "active" ? "bg-emerald-400" : "bg-rose-400"}`} />
+                        {u.status}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-4 font-mono text-gray-400">{u.requestsCount} reqs</td>
+
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleToggleRole(u.id, u.role, u.name)}
+                          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white"
+                          title="Toggle Admin/Student Role"
+                        >
+                          <Shield className="w-3.5 h-3.5 text-purple-400" />
+                        </button>
+
+                        <button
+                          onClick={() => handleTogglePlan(u.id, u.plan, u.name)}
+                          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white"
+                          title="Toggle Free / Premium Subscription"
+                        >
+                          <Crown className="w-3.5 h-3.5 text-amber-400" />
+                        </button>
+
+                        <button
+                          onClick={() => handleResetPassword(u.email)}
+                          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white"
+                          title="Send Password Reset"
+                        >
+                          <Key className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => handleToggleStatus(u.id, u.status, u.name)}
+                          className={`p-1.5 rounded-lg border ${
+                            u.status === "active"
+                              ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30"
+                              : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          }`}
+                          title={u.status === "active" ? "Suspend User" : "Activate User"}
+                        >
+                          {u.status === "active" ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -205,4 +235,3 @@ export const UserManagementView: React.FC = () => {
     </div>
   );
 };
-

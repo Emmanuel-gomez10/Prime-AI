@@ -193,26 +193,16 @@ CREATE POLICY "Users can insert own AI usage" ON public.ai_usage FOR INSERT WITH
 -- ==========================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
-DECLARE
-  admin_flag BOOLEAN := FALSE;
-  user_role TEXT := 'student';
 BEGIN
-  IF NEW.email = 'eorji362@gmail.com' OR NEW.raw_user_meta_data->>'role' = 'admin' THEN
-    admin_flag := TRUE;
-    user_role := 'admin';
-  END IF;
-
   INSERT INTO public.profiles (id, full_name, university, is_admin, role)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1)),
     COALESCE(NEW.raw_user_meta_data->>'university', 'UNIZIK'),
-    admin_flag,
-    user_role
+    FALSE,
+    'student'
   )
-  ON CONFLICT (id) DO UPDATE SET
-    is_admin = EXCLUDED.is_admin,
-    role = EXCLUDED.role;
+  ON CONFLICT (id) DO NOTHING;
 
   INSERT INTO public.subscriptions (user_id, plan, status)
   VALUES (NEW.id, 'free', 'active')

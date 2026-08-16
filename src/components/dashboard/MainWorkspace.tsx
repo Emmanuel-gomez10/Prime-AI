@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Markdown from 'markdown-to-jsx';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { supabase } from '../../lib/supabaseClient';
 import { PlaceholderView } from './views/PlaceholderView';
 import { StudyFetchView } from './views/StudyFetchView';
 import { ImageSolverView } from './views/ImageSolverView';
@@ -51,6 +52,32 @@ export const MainWorkspace = () => {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [announcement, setAnnouncement] = useState<string>('');
+  const [isMaintenance, setIsMaintenance] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const { data } = await supabase
+          .from('system_settings')
+          .select('key, value');
+        if (data) {
+          for (const item of data) {
+            if (item.key === 'global_announcement' && item.value) {
+              setAnnouncement(String(item.value));
+            }
+            if (item.key === 'maintenance_mode' && item.value === true) {
+              setIsMaintenance(true);
+            }
+          }
+        }
+      } catch {
+        // Silently handle if table missing
+      }
+    };
+    fetchSettings();
+  }, []);
+
   const handleSend = () => {
     if (inputText.trim()) {
       sendMessage(inputText);
@@ -73,7 +100,18 @@ export const MainWorkspace = () => {
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
-      
+      {announcement && (
+        <div className="bg-gradient-to-r from-[#7C3AED] to-[#41E5FF] px-4 py-2 text-center text-xs font-semibold text-white shadow-md flex items-center justify-center gap-2">
+          <span>📢 {announcement}</span>
+        </div>
+      )}
+
+      {isMaintenance && (
+        <div className="bg-amber-500/20 border-b border-amber-500/30 px-4 py-2 text-center text-xs font-semibold text-amber-300">
+          ⚠️ Prime AI is undergoing scheduled system maintenance. Some features may be temporarily limited.
+        </div>
+      )}
+
       {/* Dynamic Content Area */}
       <div className={`flex-1 w-full overflow-y-auto scroll-smooth flex flex-col ${
         activeView === 'home' 

@@ -31,8 +31,49 @@ export interface AnalyticsData {
   successRate: number;
 }
 
+export interface FeatureFlagRecord {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  environment: "Production" | "Staging" | "Beta";
+  rolloutPercentage: number;
+}
+
+export interface SystemSettingsRecord {
+  site_name: string;
+  enable_signup: boolean;
+  require_email_verification: boolean;
+  maintenance_mode: boolean;
+  global_announcement: string;
+  primary_model: string;
+  fallback_model: string;
+  daily_request_limit: number;
+  monthly_request_limit: number;
+}
+
+export interface AnnouncementRecord {
+  id: string;
+  title: string;
+  message: string;
+  target: "All Students" | "Premium Only" | "Free Tier";
+  status: "Active" | "Scheduled" | "Archived";
+  date: string;
+}
+
+export interface AuditLogRecord {
+  id: string;
+  admin_email: string;
+  action: string;
+  target: string;
+  details: string;
+  created_at: string;
+}
+
 /**
- * Service providing real administrative metrics, user management, and AI analytics from Supabase.
+ * Service providing real administrative metrics, user management, feature flags, system settings,
+ * announcements, and audit logging backed by Supabase.
  */
 export const adminService = {
   /**
@@ -40,7 +81,6 @@ export const adminService = {
    */
   async getOverviewMetrics(): Promise<AdminOverviewMetrics> {
     try {
-      // 1. Total users & Active users
       const { count: totalUsersCount } = await supabase
         .from("profiles")
         .select("*", { count: "exact", head: true });
@@ -54,33 +94,27 @@ export const adminService = {
         .select("user_id", { count: "exact", head: true })
         .gte("created_at", todayISO);
 
-      // 2. AI Requests Today
       const { count: aiRequestsTodayCount } = await supabase
         .from("ai_usage")
         .select("*", { count: "exact", head: true })
         .gte("created_at", todayISO);
 
-      // 3. Total AI Usage Records
       const { count: totalUsageCount } = await supabase
         .from("ai_usage")
         .select("*", { count: "exact", head: true });
 
-      // 4. Total Uploaded PDFs (study_materials)
       const { count: totalPdfsCount } = await supabase
         .from("study_materials")
         .select("*", { count: "exact", head: true });
 
-      // 5. Total Flashcards
       const { count: totalFlashcardsCount } = await supabase
         .from("flashcards")
         .select("*", { count: "exact", head: true });
 
-      // 6. Total Quizzes
       const { count: totalQuizzesCount } = await supabase
         .from("quiz_results")
         .select("*", { count: "exact", head: true });
 
-      // 7. Subscriptions
       const { count: premiumCount } = await supabase
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
@@ -126,7 +160,6 @@ export const adminService = {
       if (error) throw error;
       if (!profiles || profiles.length === 0) return [];
 
-      // Fetch usage counts for each profile
       const { data: usageLogs } = await supabase
         .from("ai_usage")
         .select("user_id");
@@ -138,7 +171,6 @@ export const adminService = {
         }
       }
 
-      // Fetch subscription plans
       const { data: subs } = await supabase
         .from("subscriptions")
         .select("user_id, plan");
@@ -169,7 +201,7 @@ export const adminService = {
   },
 
   /**
-   * Updates user role (admin <-> student) in Supabase.
+   * Updates user role (admin <-> student) in Supabase and logs action.
    */
   async updateUserRole(userId: string, newRole: "student" | "admin"): Promise<boolean> {
     try {
@@ -180,6 +212,7 @@ export const adminService = {
         .eq("id", userId);
 
       if (error) throw error;
+      await this.logAuditAction("UPDATE_ROLE", userId, `Changed role to ${newRole}`);
       return true;
     } catch (error) {
       console.error("Failed to update user role:", error);
@@ -188,7 +221,7 @@ export const adminService = {
   },
 
   /**
-   * Updates user account status (active <-> suspended) in Supabase.
+   * Updates user account status (active <-> suspended) in Supabase and logs action.
    */
   async updateUserStatus(userId: string, newStatus: "active" | "suspended"): Promise<boolean> {
     try {
@@ -198,9 +231,28 @@ export const adminService = {
         .eq("id", userId);
 
       if (error) throw error;
+      await this.logAuditAction("UPDATE_STATUS", userId, `Changed status to ${newStatus}`);
       return true;
     } catch (error) {
       console.error("Failed to update user status:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Updates subscription plan for a user in Supabase.
+   */
+  async updateUserPlan(userId: string, newPlan: "free" | "premium" | "enterprise"): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("subscriptions")
+        .upsert({ user_id: userId, plan: newPlan, status: "active" }, { onConflict: "user_id" });
+
+      if (error) throw error;
+      await this.logAuditAction("UPDATE_SUBSCRIPTION", userId, `Changed plan to ${newPlan}`);
+      return true;
+    } catch (error) {
+      console.error("Failed to update user plan:", error);
       return false;
     }
   },
@@ -293,6 +345,212 @@ export const adminService = {
         totalRequests: 0,
         successRate: 100,
       };
+    }
+  },
+
+  /**
+   * Fetches feature flags from Supabase system_settings or defaults.
+   */
+  async getFeatureFlags(): Promise<FeatureFlagRecord[]> {
+    const defaultFlags: FeatureFlagRecord[] = [
+      { id: "ff_1", key: "ai_tutor", name: "AI Tutor", description: "Interactive study companion and step-by-step solver.", enabled: true, environment: "Production", rolloutPercentage: 100 },
+      { id: "ff_2", key: "study_summarizer", name: "Study/PDF Summarizer", description: "Executive summaries and study questions from lecture notes.", enabled: true, environment: "Production", rolloutPercentage: 100 },
+      { id: "ff_3", key: "flashcards", name: "Flashcard Generator", description: "Spaced repetition flashcard extraction from study materials.", enabled: true, environment: "Production", rolloutPercentage: 100 },
+      { id: "ff_4", key: "image_solver", name: "Image & Homework Solver", description: "OCR and vision-based step-by-step assignment helper.", enabled: true, environment: "Production", rolloutPercentage: 100 },
+      { id: "ff_5", key: "quiz_generator", name: "Quiz/Exam Generator", description: "Custom practice quizzes with explanations.", enabled: true, environment: "Production", rolloutPercentage: 100 },
+      { id: "ff_6", key: "past_questions", name: "Past Questions Assistant", description: "University exam archive search and solution breakdown.", enabled: true, environment: "Production", rolloutPercentage: 100 },
+    ];
+
+    try {
+      const { data } = await supabase
+        .from("system_settings")
+        .select("value")
+        .eq("key", "feature_flags")
+        .maybeSingle();
+
+      if (data?.value && Array.isArray(data.value)) {
+        return data.value as FeatureFlagRecord[];
+      }
+    } catch {
+      // Fallback to default flags if table or key doesn't exist yet
+    }
+
+    return defaultFlags;
+  },
+
+  /**
+   * Saves feature flags to Supabase system_settings.
+   */
+  async saveFeatureFlags(flags: FeatureFlagRecord[]): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("system_settings")
+        .upsert({ key: "feature_flags", value: flags, updated_at: new Date().toISOString() }, { onConflict: "key" });
+
+      if (error) throw error;
+      await this.logAuditAction("UPDATE_FEATURE_FLAGS", "system", `Updated ${flags.length} feature flags`);
+      return true;
+    } catch (error) {
+      console.error("Failed to save feature flags:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Fetches global system settings from Supabase.
+   */
+  async getSystemSettings(): Promise<SystemSettingsRecord> {
+    const defaultSettings: SystemSettingsRecord = {
+      site_name: "Prime AI",
+      enable_signup: true,
+      require_email_verification: true,
+      maintenance_mode: false,
+      global_announcement: "",
+      primary_model: "gpt-4o",
+      fallback_model: "gpt-4o-mini",
+      daily_request_limit: 50,
+      monthly_request_limit: 1000,
+    };
+
+    try {
+      const { data } = await supabase
+        .from("system_settings")
+        .select("key, value");
+
+      if (data && data.length > 0) {
+        const settings = { ...defaultSettings };
+        for (const item of data) {
+          if (item.key in settings) {
+            (settings as any)[item.key] = item.value;
+          }
+        }
+        return settings;
+      }
+    } catch {
+      // Fallback to defaults
+    }
+
+    return defaultSettings;
+  },
+
+  /**
+   * Saves a single system setting key/value pair to Supabase.
+   */
+  async saveSystemSetting(key: string, value: any): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("system_settings")
+        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+
+      if (error) throw error;
+      await this.logAuditAction("UPDATE_SYSTEM_SETTING", key, `Updated setting ${key} to ${JSON.stringify(value)}`);
+      return true;
+    } catch (error) {
+      console.error(`Failed to save system setting ${key}:`, error);
+      return false;
+    }
+  },
+
+  /**
+   * Fetches announcements from Supabase.
+   */
+  async getAnnouncements(): Promise<AnnouncementRecord[]> {
+    try {
+      const { data } = await supabase
+        .from("announcements")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (data && data.length > 0) {
+        return data.map((a) => ({
+          id: a.id,
+          title: a.title,
+          message: a.message,
+          target: a.target || "All Students",
+          status: a.status || "Active",
+          date: a.created_at ? new Date(a.created_at).toISOString().split("T")[0] : "2026-08-01",
+        }));
+      }
+    } catch {
+      // Fallback
+    }
+    return [
+      { id: "anc_1", title: "🚀 Welcome to Prime AI", message: "Explore your AI study workspace with step-by-step problem solver and lecture summarizer.", target: "All Students", status: "Active", date: "2026-08-01" }
+    ];
+  },
+
+  /**
+   * Creates a new broadcast announcement.
+   */
+  async createAnnouncement(title: string, message: string, target: "All Students" | "Premium Only" | "Free Tier"): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .insert({ title, message, target, status: "Active" });
+
+      if (error) throw error;
+      await this.logAuditAction("CREATE_ANNOUNCEMENT", target, `Broadcasting: ${title}`);
+      return true;
+    } catch (error) {
+      console.error("Failed to create announcement:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Deletes an announcement.
+   */
+  async deleteAnnouncement(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      await this.logAuditAction("DELETE_ANNOUNCEMENT", id, `Removed announcement ${id}`);
+      return true;
+    } catch (error) {
+      console.error("Failed to delete announcement:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Fetches audit logs from Supabase.
+   */
+  async getAuditLogs(): Promise<AuditLogRecord[]> {
+    try {
+      const { data } = await supabase
+        .from("admin_audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (data && data.length > 0) {
+        return data as AuditLogRecord[];
+      }
+    } catch {
+      // Fallback
+    }
+    return [];
+  },
+
+  /**
+   * Records an admin action into admin_audit_logs.
+   */
+  async logAuditAction(action: string, target: string, details: string): Promise<void> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const adminEmail = session?.user?.email || "admin@prime.ai";
+      await supabase.from("admin_audit_logs").insert({
+        admin_email: adminEmail,
+        action,
+        target,
+        details,
+      });
+    } catch (error) {
+      console.error("Failed to log audit action:", error);
     }
   },
 };
