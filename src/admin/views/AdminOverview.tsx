@@ -16,7 +16,10 @@ import {
   Sparkles, 
   Activity, 
   Megaphone,
-  Loader2
+  Plus,
+  Sliders,
+  UserX,
+  Send
 } from "lucide-react";
 import { useAdmin } from "../AdminContext";
 import { adminService } from "../../services/admin/adminService";
@@ -25,7 +28,7 @@ import type { AdminOverviewMetrics } from "../../services/admin/adminService";
 export const AdminOverview: React.FC = () => {
   const { setActiveView } = useAdmin();
   const [metrics, setMetrics] = useState<AdminOverviewMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMetrics = async () => {

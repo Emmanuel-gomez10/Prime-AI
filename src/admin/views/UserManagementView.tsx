@@ -5,8 +5,7 @@ import {
   UserCheck, 
   UserX, 
   Shield, 
-  Key,
-  Loader2
+  Key
 } from "lucide-react";
 import { toast } from "sonner";
 import { adminService } from "../../services/admin/adminService";
@@ -14,7 +13,7 @@ import type { RealUserRecord } from "../../services/admin/adminService";
 
 export const UserManagementView: React.FC = () => {
   const [users, setUsers] = useState<RealUserRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
 

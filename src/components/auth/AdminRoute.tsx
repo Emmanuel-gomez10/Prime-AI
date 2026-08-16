@@ -9,34 +9,60 @@ export const AdminRoute = () => {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkAdmin = async () => {
-      if (!user) {
-        setIsAdmin(false);
-        setCheckingAdmin(false);
+      // 1. If AuthContext is still loading session, do not alter checkingAdmin state
+      if (authLoading) {
         return;
       }
 
-      setCheckingAdmin(true);
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("is_admin, role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Admin authorization check failed:", error);
-        setIsAdmin(false);
-      } else {
-        const isAdminUser = data?.is_admin === true || data?.role === "admin";
-        setIsAdmin(isAdminUser);
+      // 2. Auth has finished loading: if no user, deny admin
+      if (!user) {
+        if (isMounted) {
+          setIsAdmin(false);
+          setCheckingAdmin(false);
+        }
+        return;
       }
 
-      setCheckingAdmin(false);
+      // 3. User is present: perform database-backed Supabase authorization check
+      if (isMounted) {
+        setCheckingAdmin(true);
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("is_admin, role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (isMounted) {
+          if (error) {
+            console.error("Admin authorization check failed:", error);
+            setIsAdmin(false);
+          } else {
+            const isAdminUser = data?.is_admin === true || data?.role === "admin";
+            setIsAdmin(isAdminUser);
+          }
+          setCheckingAdmin(false);
+        }
+      } catch (err) {
+        console.error("Unexpected error in checkAdmin:", err);
+        if (isMounted) {
+          setIsAdmin(false);
+          setCheckingAdmin(false);
+        }
+      }
     };
 
     checkAdmin();
-  }, [user]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, authLoading]);
 
   if (authLoading || checkingAdmin) {
     return (

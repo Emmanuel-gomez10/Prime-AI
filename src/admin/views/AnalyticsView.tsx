@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { adminService } from "../../services/admin/adminService";
 import type { AnalyticsData } from "../../services/admin/adminService";
-import { Filter, Activity } from "lucide-react";
+import { Filter } from "lucide-react";
 
 export const AnalyticsView: React.FC = () => {
   const [days, setDays] = useState<number>(7);
   const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
