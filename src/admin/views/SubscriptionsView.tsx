@@ -8,6 +8,7 @@ interface SubscriptionMetrics {
   enterpriseCount: number;
   mrr: number;
   dailyLimit: number;
+  premiumPrice: number;
 }
 
 export const SubscriptionsView: React.FC = () => {
@@ -71,7 +72,7 @@ export const SubscriptionsView: React.FC = () => {
             </div>
             <div className="text-3xl font-extrabold text-white">{metrics.premiumCount.toLocaleString()}</div>
             <p className="text-xs text-gray-300">
-              $10.00 / month ({metrics.mrr > 0 ? `$${metrics.mrr.toLocaleString()} MRR` : "$0 MRR"})
+              ${metrics.premiumPrice.toFixed(2)} / month ({metrics.mrr > 0 ? `$${metrics.mrr.toLocaleString()} MRR` : "$0 MRR"})
             </p>
           </div>
 

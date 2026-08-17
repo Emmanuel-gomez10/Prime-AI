@@ -51,6 +51,7 @@ export interface SystemSettingsRecord {
   fallback_model: string;
   daily_request_limit: number;
   monthly_request_limit: number;
+  premium_monthly_price: number;
 }
 
 export interface AnnouncementRecord {
@@ -115,6 +116,10 @@ export const adminService = {
         .from("quiz_results")
         .select("*", { count: "exact", head: true });
 
+      // 7. Subscriptions & Pricing from System Settings
+      const settings = await this.getSystemSettings();
+      const price = settings.premium_monthly_price ?? 10;
+
       const { count: premiumCount } = await supabase
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
@@ -129,7 +134,7 @@ export const adminService = {
         totalQuizzes: totalQuizzesCount || 0,
         totalUsage: totalUsageCount || 0,
         premiumSubscribers: premiumCount || 0,
-        monthlyRevenue: (premiumCount || 0) * 10,
+        monthlyRevenue: (premiumCount || 0) * price,
       };
     } catch (error) {
       console.error("Failed to fetch admin overview metrics:", error);
@@ -185,13 +190,14 @@ export const adminService = {
         .ilike("plan", "%enterprise%")
         .eq("status", "active");
 
-      // 4. Read system settings for limits
+      // 4. Read system settings for limits & price
       const settings = await this.getSystemSettings();
-      const dailyLimit = settings.daily_request_limit || 50;
+      const dailyLimit = settings.daily_request_limit ?? 50;
+      const premiumPrice = settings.premium_monthly_price ?? 10;
 
-      // Calculate MRR ($10 / month per premium subscriber)
+      // Calculate MRR (configured monthly price per active premium subscriber)
       const activePremium = premiumCount || 0;
-      const mrr = activePremium * 10;
+      const mrr = activePremium * premiumPrice;
 
       return {
         freeCount: actualFreeCount,
@@ -199,6 +205,7 @@ export const adminService = {
         enterpriseCount: enterpriseCount || 0,
         mrr,
         dailyLimit,
+        premiumPrice,
       };
     } catch (error) {
       console.error("Failed to fetch subscription metrics:", error);
@@ -208,6 +215,7 @@ export const adminService = {
         enterpriseCount: 0,
         mrr: 0,
         dailyLimit: 50,
+        premiumPrice: 10,
       };
     }
   },
@@ -475,6 +483,7 @@ export const adminService = {
       fallback_model: "gpt-4o-mini",
       daily_request_limit: 50,
       monthly_request_limit: 1000,
+      premium_monthly_price: 10,
     };
 
     try {

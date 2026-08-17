@@ -38,10 +38,10 @@ export const AIModelsView: React.FC = () => {
         setFallbackModel(settings.fallback_model);
         AI_CONFIG.fallbackModels = [settings.fallback_model];
       }
-      if (settings.daily_request_limit) {
+      if (typeof settings.daily_request_limit === "number") {
         setDailyLimit(settings.daily_request_limit);
       }
-      if (settings.monthly_request_limit) {
+      if (typeof settings.monthly_request_limit === "number") {
         setMonthlyLimit(settings.monthly_request_limit);
       }
     };

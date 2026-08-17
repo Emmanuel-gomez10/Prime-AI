@@ -150,7 +150,7 @@ class AIService {
       }
 
       // 4. Daily AI Request Limit Check against real ai_usage table
-      const dailyLimit = typeof settingsMap.daily_request_limit === "number" ? settingsMap.daily_request_limit : 50;
+      const dailyLimit = settingsMap.daily_request_limit ?? 50;
       if (!isAdmin && dailyLimit > 0) {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
