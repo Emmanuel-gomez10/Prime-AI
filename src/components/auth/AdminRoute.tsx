@@ -12,7 +12,7 @@ export const AdminRoute = () => {
     let isMounted = true;
 
     const checkAdmin = async () => {
-      // 1. If AuthContext is still loading session, do not alter checkingAdmin state
+      // 1. If AuthContext is still loading session, do not complete checkingAdmin
       if (authLoading) {
         return;
       }
@@ -26,11 +26,7 @@ export const AdminRoute = () => {
         return;
       }
 
-      // 3. User is present: perform database-backed Supabase authorization check
-      if (isMounted) {
-        setCheckingAdmin(true);
-      }
-
+      // 3. User is present: query profiles table
       try {
         const { data, error } = await supabase
           .from("profiles")
@@ -62,7 +58,7 @@ export const AdminRoute = () => {
     return () => {
       isMounted = false;
     };
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
 
   if (authLoading || checkingAdmin) {
     return (
