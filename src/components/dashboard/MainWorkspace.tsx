@@ -1,6 +1,7 @@
 import { 
   HelpCircle, Image as ImageIcon, Plus, Mic, ArrowRight, Search, FileText, 
-  Upload, BookOpen, PenTool, Lightbulb, File, MicOff, Paperclip, X
+  Upload, BookOpen, PenTool, Lightbulb, File, MicOff, Paperclip, X,
+  Copy, Check, ThumbsUp, ThumbsDown, Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useState, useRef, useEffect } from 'react';
@@ -119,7 +120,7 @@ export const MainWorkspace = () => {
         activeView === 'home' 
           ? 'max-w-4xl mx-auto px-4 lg:px-8 py-6 sm:py-8 lg:py-12 lg:items-center lg:justify-center scrollbar-hide' 
           : activeView === 'chat' 
-            ? 'px-4 sm:px-8 lg:px-12 pt-6 pb-44 sm:pb-44 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent' 
+            ? 'px-4 sm:px-8 lg:px-12 pt-6 pb-48 sm:pb-48 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent' 
             : 'max-w-4xl mx-auto px-4 lg:px-8 pt-6 pb-28 sm:pb-24 scrollbar-hide'
       }`}>
         
@@ -210,8 +211,11 @@ export const MainWorkspace = () => {
                         : 'w-full max-w-[92%] sm:max-w-[88%] lg:max-w-[85%] mr-auto bg-transparent border-none text-primary-text px-0 py-1 shadow-none'
                     }`}>
                       {msg.role === 'model' ? (
-                        <div className="prose prose-invert max-w-none text-primary-text text-[15px] leading-relaxed">
-                          <Markdown>{msg.content || '...'}</Markdown>
+                        <div>
+                          <div className="prose prose-invert max-w-none text-primary-text text-[15px] leading-relaxed">
+                            <Markdown>{msg.content || '...'}</Markdown>
+                          </div>
+                          {msg.content && <ResponseActionBar content={msg.content} />}
                         </div>
                       ) : (
                         <span className="whitespace-pre-wrap font-medium">{msg.content}</span>
@@ -387,5 +391,98 @@ const InputBar = ({ inputText, setInputText, handleKeyDown, handleSend, isTyping
     </div>
   );
 };
+
+interface ResponseActionBarProps {
+  content: string;
+}
+
+const ResponseActionBar: React.FC<ResponseActionBarProps> = ({ content }) => {
+  const [copied, setCopied] = useState(false);
+  const [rating, setRating] = useState<'up' | 'down' | null>(null);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy AI response:', err);
+    }
+  };
+
+  const handleRating = (type: 'up' | 'down') => {
+    setRating(prev => (prev === type ? null : type));
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Prime AI Tutor Response',
+          text: content,
+        });
+      } catch (err) {
+        // User cancelled or share failed
+      }
+    } else {
+      handleCopy();
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1 mt-2 text-secondary-text">
+      {/* Copy Button */}
+      <button
+        onClick={handleCopy}
+        aria-label="Copy response"
+        title={copied ? "Copied!" : "Copy response"}
+        className={`p-1.5 rounded-lg transition-colors ${
+          copied ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'hover:bg-card-hover hover:text-primary-text'
+        }`}
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+      </button>
+
+      {/* Thumbs Up Button */}
+      <button
+        onClick={() => handleRating('up')}
+        aria-label="Rate response positively"
+        title="Helpful response"
+        className={`p-1.5 rounded-lg transition-colors ${
+          rating === 'up' 
+            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+            : 'hover:bg-card-hover hover:text-primary-text'
+        }`}
+      >
+        <ThumbsUp className="w-3.5 h-3.5" />
+      </button>
+
+      {/* Thumbs Down Button */}
+      <button
+        onClick={() => handleRating('down')}
+        aria-label="Rate response negatively"
+        title="Unhelpful response"
+        className={`p-1.5 rounded-lg transition-colors ${
+          rating === 'down' 
+            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' 
+            : 'hover:bg-card-hover hover:text-primary-text'
+        }`}
+      >
+        <ThumbsDown className="w-3.5 h-3.5" />
+      </button>
+
+      {/* Share Button */}
+      <button
+        onClick={handleShare}
+        aria-label="Share response"
+        title="Share response"
+        className="p-1.5 rounded-lg hover:bg-card-hover hover:text-primary-text transition-colors"
+      >
+        <Share2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+};
+
 
 
