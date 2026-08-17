@@ -1,11 +1,11 @@
 import { 
   LayoutDashboard, Bot, FileUp, Image as ImageIcon, 
   BookMarked, FileQuestion, Calendar, TrendingUp, 
-  Settings, User, X, GraduationCap, PenTool, Plus, MessageSquare, Trash2 
+  Settings, User, X, GraduationCap, PenTool, Plus, MessageSquare, Trash2, LifeBuoy 
 } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 
-type ViewType = 'home' | 'chat' | 'flashcards' | 'quiz' | 'notes' | 'study-fetch' | 'image-solver' | 'past-questions' | 'planner' | 'progress' | 'settings' | 'profile' | 'essay-writer';
+type ViewType = 'home' | 'chat' | 'flashcards' | 'quiz' | 'notes' | 'study-fetch' | 'image-solver' | 'past-questions' | 'planner' | 'progress' | 'settings' | 'profile' | 'essay-writer' | 'support';
 
 const NAV_ITEMS: { icon: any, label: string, view: ViewType }[] = [
   { icon: LayoutDashboard, label: 'Dashboard', view: 'home' },
@@ -21,6 +21,7 @@ const NAV_ITEMS: { icon: any, label: string, view: ViewType }[] = [
 ];
 
 const BOTTOM_ITEMS: { icon: any, label: string, view: ViewType }[] = [
+  { icon: LifeBuoy, label: 'Support & Help', view: 'support' },
   { icon: Settings, label: 'Settings', view: 'settings' },
   { icon: User, label: 'Profile', view: 'profile' },
 ];

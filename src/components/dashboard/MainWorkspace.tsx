@@ -20,6 +20,7 @@ import { EssayWriterView } from './views/EssayWriterView';
 import { QuizGeneratorView } from './views/QuizGeneratorView';
 import { PastQuestionsView } from './views/PastQuestionsView';
 import { ProfileView } from './views/ProfileView';
+import { StudentSupportView } from './views/StudentSupportView';
 
 const PILL_BUTTONS = [
   { icon: BookOpen, label: 'Explain Concept', prompt: 'Explain Quantum Physics in simple terms' },
@@ -257,6 +258,8 @@ export const MainWorkspace = () => {
           <ProfileView />
         ) : activeView === 'essay-writer' ? (
           <EssayWriterView />
+        ) : activeView === 'support' ? (
+          <StudentSupportView />
         ) : (
           <PlaceholderView 
             title={(activeView as string).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} 

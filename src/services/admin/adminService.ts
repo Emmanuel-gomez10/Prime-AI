@@ -72,6 +72,30 @@ export interface AuditLogRecord {
   created_at: string;
 }
 
+export interface StudyResourceRecord {
+  id: string;
+  title: string;
+  category: "Past Question" | "Course Material" | "Study Guide";
+  university: string;
+  downloads: number;
+  uploaded_at?: string;
+  created_at?: string;
+}
+
+export interface SupportTicketRecord {
+  id: string;
+  user_id?: string;
+  student_name: string;
+  email: string;
+  subject: string;
+  category: "Billing" | "Technical" | "AI Engine" | "Account";
+  priority: "Urgent" | "High" | "Normal";
+  status: "Open" | "In Progress" | "Resolved";
+  created_at: string;
+  message: string;
+  admin_reply?: string;
+}
+
 /**
  * Service providing real administrative metrics, user management, feature flags, system settings,
  * announcements, and audit logging backed by Supabase.
@@ -591,6 +615,110 @@ export const adminService = {
   },
 
   /**
+   * Fetches study resources & past questions from public.study_resources
+   */
+  async getStudyResources(): Promise<StudyResourceRecord[]> {
+    try {
+      const { data, error } = await supabase
+        .from("study_resources")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (data) return data as StudyResourceRecord[];
+    } catch (err) {
+      console.error("Failed to fetch study resources:", err);
+    }
+    return [];
+  },
+
+  /**
+   * Creates a new study resource / past question entry in public.study_resources
+   */
+  async createStudyResource(resource: Omit<StudyResourceRecord, "id">): Promise<StudyResourceRecord | null> {
+    try {
+      const { data, error } = await supabase
+        .from("study_resources")
+        .insert({
+          title: resource.title,
+          category: resource.category,
+          university: resource.university,
+          downloads: resource.downloads || 0,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      await this.logAuditAction("CREATE_STUDY_RESOURCE", resource.university, `Created resource: ${resource.title}`);
+      return data as StudyResourceRecord;
+    } catch (err) {
+      console.error("Failed to create study resource:", err);
+      return null;
+    }
+  },
+
+  /**
+   * Deletes a study resource from public.study_resources
+   */
+  async deleteStudyResource(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("study_resources")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      await this.logAuditAction("DELETE_STUDY_RESOURCE", id, `Deleted resource ${id}`);
+      return true;
+    } catch (err) {
+      console.error("Failed to delete study resource:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Fetches support tickets from public.support_tickets
+   */
+  async getSupportTickets(): Promise<SupportTicketRecord[]> {
+    try {
+      const { data, error } = await supabase
+        .from("support_tickets")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (data) return data as SupportTicketRecord[];
+    } catch (err) {
+      console.error("Failed to fetch support tickets:", err);
+    }
+    return [];
+  },
+
+  /**
+   * Updates support ticket status and/or appends an admin reply
+   */
+  async updateSupportTicket(id: string, status: "Open" | "In Progress" | "Resolved", adminReply?: string): Promise<boolean> {
+    try {
+      const updateData: any = { status };
+      if (adminReply) {
+        updateData.admin_reply = adminReply;
+      }
+
+      const { error } = await supabase
+        .from("support_tickets")
+        .update(updateData)
+        .eq("id", id);
+
+      if (error) throw error;
+      await this.logAuditAction("UPDATE_SUPPORT_TICKET", id, `Marked ticket ${id} as ${status}${adminReply ? ' with reply' : ''}`);
+      return true;
+    } catch (err) {
+      console.error("Failed to update support ticket:", err);
+      return false;
+    }
+  },
+
+  /**
    * Fetches audit logs from Supabase.
    */
   async getAuditLogs(): Promise<AuditLogRecord[]> {
@@ -628,3 +756,5 @@ export const adminService = {
     }
   },
 };
+
+

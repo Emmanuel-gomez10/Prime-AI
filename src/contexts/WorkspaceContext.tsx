@@ -35,7 +35,8 @@ export type ViewType =
   | 'progress' 
   | 'settings' 
   | 'profile' 
-  | 'essay-writer';
+  | 'essay-writer'
+  | 'support';
 
 interface WorkspaceContextType {
   activeView: ViewType;

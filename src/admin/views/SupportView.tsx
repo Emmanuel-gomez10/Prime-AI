@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   LifeBuoy, 
   Search, 
@@ -6,98 +6,74 @@ import {
   Clock, 
   Send, 
   User, 
-  X 
+  X,
+  RefreshCw 
 } from "lucide-react";
 import { toast } from "sonner";
-
-interface Ticket {
-  id: string;
-  studentName: string;
-  email: string;
-  subject: string;
-  category: "Billing" | "Technical" | "AI Engine" | "Account";
-  priority: "Urgent" | "High" | "Normal";
-  status: "Open" | "In Progress" | "Resolved";
-  date: string;
-  message: string;
-}
-
-const INITIAL_TICKETS: Ticket[] = [
-  {
-    id: "TCK-8901",
-    studentName: "Amara Chukwu",
-    email: "amara.c@unizik.edu.ng",
-    subject: "Flashcards export timing out on 500+ cards",
-    category: "Technical",
-    priority: "High",
-    status: "Open",
-    date: "2026-08-07 10:14 AM",
-    message: "Whenever I try to export my 500-card Biochemistry deck to PDF, the screen freezes at 98% and throws a network error."
-  },
-  {
-    id: "TCK-8902",
-    studentName: "David Okon",
-    email: "david.o@unilag.edu.ng",
-    subject: "Premium annual subscription payment pending",
-    category: "Billing",
-    priority: "Urgent",
-    status: "In Progress",
-    date: "2026-08-07 09:30 AM",
-    message: "Paystack charged my card for the annual plan but my dashboard still displays Free Tier status."
-  },
-  {
-    id: "TCK-8903",
-    studentName: "Blessing Adebayo",
-    email: "blessing@covenantuniversity.edu.ng",
-    subject: "Image Solver LaTeX math rendering question",
-    category: "AI Engine",
-    priority: "Normal",
-    status: "Resolved",
-    date: "2026-08-06 04:45 PM",
-    message: "Can we copy LaTeX code straight out of the solver box into Overleaf? Yes, working now!"
-  },
-  {
-    id: "TCK-8904",
-    studentName: "Emmanuel Gomez",
-    email: "eorji362@gmail.com",
-    subject: "API Key rate limit inquiry for study group",
-    category: "Account",
-    priority: "Normal",
-    status: "Open",
-    date: "2026-08-06 02:15 PM",
-    message: "We have 15 students sharing study decks. Do we need enterprise group quota?"
-  }
-];
+import { adminService } from "../../services/admin/adminService";
+import type { SupportTicketRecord } from "../../services/admin/adminService";
 
 export const SupportView: React.FC = () => {
-  const [tickets, setTickets] = useState<Ticket[]>(INITIAL_TICKETS);
+  const [tickets, setTickets] = useState<SupportTicketRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicketRecord | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadTickets = async () => {
+    setLoading(true);
+    const data = await adminService.getSupportTickets();
+    setTickets(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
 
   const filteredTickets = tickets.filter(t => {
-    const matchesSearch = t.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          t.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (t.student_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (t.subject || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (t.id || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "All" || t.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
-  const handleStatusChange = (id: string, newStatus: Ticket["status"]) => {
-    setTickets(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
-    toast.success(`Ticket ${id} marked as ${newStatus}`);
-    if (selectedTicket && selectedTicket.id === id) {
-      setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null);
+  const openTicketsCount = tickets.filter(t => t.status === "Open").length;
+
+  const handleStatusChange = async (id: string, newStatus: SupportTicketRecord["status"]) => {
+    const success = await adminService.updateSupportTicket(id, newStatus);
+    if (success) {
+      setTickets(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+      toast.success(`Ticket status updated to ${newStatus}`);
+      if (selectedTicket && selectedTicket.id === id) {
+        setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+    } else {
+      toast.error("Failed to update ticket status");
     }
   };
 
-  const handleSendReply = (e: React.FormEvent) => {
+  const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim() || !selectedTicket) return;
-    toast.success(`Reply sent to ${selectedTicket.email}`);
-    handleStatusChange(selectedTicket.id, "In Progress");
-    setReplyText("");
+
+    setIsSubmitting(true);
+    const success = await adminService.updateSupportTicket(selectedTicket.id, "In Progress", replyText);
+    setIsSubmitting(false);
+
+    if (success) {
+      toast.success(`Reply sent to ${selectedTicket.email}`);
+      setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: "In Progress", admin_reply: replyText } : t));
+      if (selectedTicket) {
+        setSelectedTicket(prev => prev ? { ...prev, status: "In Progress", admin_reply: replyText } : null);
+      }
+      setReplyText("");
+    } else {
+      toast.error("Failed to send reply.");
+    }
   };
 
   return (
@@ -111,8 +87,15 @@ export const SupportView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold flex items-center gap-1.5">
-            <Clock className="w-4 h-4" /> 2 Open Tickets
+          <button
+            onClick={loadTickets}
+            disabled={loading}
+            className="p-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 border border-white/10"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <div className="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold flex items-center gap-1.5">
+            <Clock className="w-4 h-4" /> {openTicketsCount} Open Ticket{openTicketsCount === 1 ? '' : 's'}
           </div>
         </div>
       </div>
@@ -164,48 +147,65 @@ export const SupportView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredTickets.map((t) => (
-                <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-bold text-white">{t.id}</td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-semibold text-white">{t.studentName}</div>
-                    <div className="text-[10px] text-gray-400">{t.email}</div>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-medium text-white truncate max-w-xs">{t.subject}</div>
-                    <span className="text-[10px] bg-white/[0.06] text-gray-400 px-2 py-0.5 rounded-full inline-block mt-0.5">
-                      {t.category}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                      t.priority === "Urgent" ? "bg-rose-500/20 text-rose-300 border border-rose-500/30" :
-                      t.priority === "High" ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" :
-                      "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                    }`}>
-                      {t.priority}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                      t.status === "Resolved" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
-                      t.status === "In Progress" ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" :
-                      "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                    }`}>
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-gray-400">{t.date}</td>
-                  <td className="py-3.5 px-4 text-right">
-                    <button
-                      onClick={() => setSelectedTicket(t)}
-                      className="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 text-xs font-medium border border-purple-500/30 transition-all"
-                    >
-                      View & Reply
-                    </button>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#41E5FF]" />
+                    Loading support tickets...
                   </td>
                 </tr>
-              ))}
+              ) : filteredTickets.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                    No support tickets found.
+                  </td>
+                </tr>
+              ) : (
+                filteredTickets.map((t) => (
+                  <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-bold text-white">{t.id.slice(0, 8)}</td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-semibold text-white">{t.student_name}</div>
+                      <div className="text-[10px] text-gray-400">{t.email}</div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-medium text-white truncate max-w-xs">{t.subject}</div>
+                      <span className="text-[10px] bg-white/[0.06] text-gray-400 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                        {t.category}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                        t.priority === "Urgent" ? "bg-rose-500/20 text-rose-300 border border-rose-500/30" :
+                        t.priority === "High" ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" :
+                        "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                      }`}>
+                        {t.priority}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                        t.status === "Resolved" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
+                        t.status === "In Progress" ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" :
+                        "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                      }`}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-gray-400">
+                      {t.created_at ? new Date(t.created_at).toLocaleDateString() : 'Today'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        onClick={() => setSelectedTicket(t)}
+                        className="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 text-xs font-medium border border-purple-500/30 transition-all"
+                      >
+                        View & Reply
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -228,7 +228,7 @@ export const SupportView: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-white text-base">{selectedTicket.subject}</h3>
-                <p className="text-xs text-gray-400">{selectedTicket.studentName} ({selectedTicket.email}) • {selectedTicket.id}</p>
+                <p className="text-xs text-gray-400">{selectedTicket.student_name} ({selectedTicket.email}) • {selectedTicket.id.slice(0, 8)}</p>
               </div>
             </div>
 
@@ -236,6 +236,13 @@ export const SupportView: React.FC = () => {
               <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Student Message</span>
               <p className="text-xs text-gray-200 leading-relaxed">{selectedTicket.message}</p>
             </div>
+
+            {selectedTicket.admin_reply && (
+              <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-1">
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Previous Admin Response</span>
+                <p className="text-xs text-purple-200 leading-relaxed">{selectedTicket.admin_reply}</p>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -274,9 +281,10 @@ export const SupportView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#41E5FF] text-white text-xs font-semibold flex items-center gap-2 shadow-lg hover:opacity-90"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  {isSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   <span>Send Response</span>
                 </button>
               </div>
@@ -287,3 +295,4 @@ export const SupportView: React.FC = () => {
     </div>
   );
 };
+

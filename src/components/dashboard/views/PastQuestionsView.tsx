@@ -5,6 +5,7 @@ import Markdown from 'markdown-to-jsx';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { UNIZIK_FACULTIES, UNIVERSITIES_LIST } from '../../../data/unizikData';
+import { adminService } from '../../../services/admin/adminService';
 
 export interface PastQuestionItem {
   id: string;
@@ -45,92 +46,39 @@ export const PastQuestionsView = () => {
   const availableDepartments = currentFacultyObj ? currentFacultyObj.departments : [];
 
   useEffect(() => {
-    const saved = localStorage.getItem('prime_past_questions_v3');
-    if (saved) {
-      try {
-        setQuestions(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse saved past questions:", e);
-      }
-    } else {
-      const defaultQuestions: PastQuestionItem[] = [
-        {
-          id: 'pq-1',
-          university: 'UNIZIK (Nnamdi Azikiwe University)',
-          faculty: 'Faculty of Arts & General Studies',
-          department: 'General Studies Unit',
-          courseCode: 'GST101',
-          courseTitle: 'Use of English & Communication',
-          year: '2022',
-          questionText: 'Which of the following sentence structures represents a complex sentence?',
-          options: [
-            'A) The student studied hard and passed the exam.',
-            'B) Although it was raining, the student walked to class.',
-            'C) The lecturer entered the hall.',
-            'D) Read your books every day.'
-          ],
-          correctAnswer: 'B) Although it was raining, the student walked to class.',
-          aiExplanation: 'A complex sentence consists of one independent clause ("the student walked to class") and at least one dependent clause ("Although it was raining").'
-        },
-        {
-          id: 'pq-2',
-          university: 'UNIZIK (Nnamdi Azikiwe University)',
-          faculty: 'Faculty of Physical Sciences',
-          department: 'Mathematics',
-          courseCode: 'MAT111',
-          courseTitle: 'Algebra & Trigonometry',
-          year: '2023',
-          questionText: 'Find the derivative of f(x) = 3x^3 - 5x^2 + 7x - 12 with respect to x.',
-          options: [
-            'A) 9x^2 - 10x + 7',
-            'B) 3x^2 - 5x + 7',
-            'C) 9x^2 - 5x + 7',
-            'D) 6x^2 - 10x + 7'
-          ],
-          correctAnswer: 'A) 9x^2 - 10x + 7',
-          aiExplanation: 'Using the power rule d/dx[x^n] = n*x^(n-1): d/dx(3x^3) = 9x^2, d/dx(-5x^2) = -10x, d/dx(7x) = 7, d/dx(-12) = 0.'
-        },
-        {
-          id: 'pq-3',
-          university: 'UNIZIK (Nnamdi Azikiwe University)',
-          faculty: 'Faculty of Physical Sciences',
-          department: 'Computer Science',
-          courseCode: 'CSC201',
-          courseTitle: 'Data Structures & Algorithms',
-          year: '2023',
-          questionText: 'In UNIZIK CSC201 curriculum, what is the worst-case time complexity of QuickSort?',
-          options: [
-            'A) O(n log n)',
-            'B) O(n^2)',
-            'C) O(n)',
-            'D) O(1)'
-          ],
-          correctAnswer: 'B) O(n^2)',
-          aiExplanation: 'QuickSort has a worst-case time complexity of O(n^2) when the pivot chosen is consistently the smallest or largest element (e.g. on an already sorted array).'
-        },
-        {
-          id: 'pq-4',
-          university: 'UNIZIK (Nnamdi Azikiwe University)',
-          faculty: 'Faculty of Engineering',
-          department: 'Electrical & Electronic Engineering',
-          courseCode: 'EEE201',
-          courseTitle: 'Circuit Theory I',
-          year: '2023',
-          questionText: 'Calculate the total equivalent resistance of two 10-ohm resistors connected in parallel across a 12V DC source.',
-          options: ['A) 20 ohms', 'B) 5 ohms', 'C) 10 ohms', 'D) 2.5 ohms'],
-          correctAnswer: 'B) 5 ohms',
-          aiExplanation: 'For parallel resistors of equal value R, Req = R / n = 10 / 2 = 5 ohms.'
-        }
-      ];
-      setQuestions(defaultQuestions);
-      localStorage.setItem('prime_past_questions_v3', JSON.stringify(defaultQuestions));
-    }
-  }, []);
+    const loadPastQuestions = async () => {
+      const dbResources = await adminService.getStudyResources();
+      const pastQuestionResources = dbResources.filter(
+        (r) => r.category === 'Past Question'
+      );
 
-  const saveQuestions = (updated: PastQuestionItem[]) => {
-    setQuestions(updated);
-    localStorage.setItem('prime_past_questions_v3', JSON.stringify(updated));
-  };
+      if (pastQuestionResources.length > 0) {
+        const formatted: PastQuestionItem[] = pastQuestionResources.map((r) => ({
+          id: r.id,
+          university: r.university || 'UNIZIK (Nnamdi Azikiwe University)',
+          faculty: 'Faculty of General Studies',
+          department: 'General Studies',
+          courseCode: r.title.split(' ')[0] || 'GST101',
+          courseTitle: r.title,
+          year: '2024',
+          questionText: `Study Material / Past Question Paper: ${r.title}. Downloaded ${r.downloads} times.`,
+          options: [
+            'Option A: High-Yield Practice Question',
+            'Option B: Core Concept Explanation',
+            'Option C: Past Exam Format',
+            'Option D: Solution Guide'
+          ],
+          correctAnswer: 'Option A: High-Yield Practice Question',
+          aiExplanation: `Official past question material provided by ${r.university}.`
+        }));
+        setQuestions(formatted);
+      } else {
+        setQuestions([]);
+      }
+    };
+
+    loadPastQuestions();
+  }, []);
 
   const handleFacultyChange = (fac: string) => {
     setSelectedFaculty(fac);
@@ -207,7 +155,7 @@ Return ONLY a valid JSON array of objects with schema:
         }));
 
         const updated = [...newItems, ...questions];
-        saveQuestions(updated);
+        setQuestions(updated);
       } else {
         throw new Error("Could not parse generated past questions JSON");
       }

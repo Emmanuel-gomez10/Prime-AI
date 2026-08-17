@@ -326,6 +326,47 @@ class DatabaseService {
     }
   }
 
+  public async createSupportTicket(ticket: { user_id: string; student_name: string; email: string; subject: string; category: string; priority: string; message: string }) {
+    try {
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .insert({
+          user_id: ticket.user_id,
+          student_name: ticket.student_name,
+          email: ticket.email,
+          subject: ticket.subject,
+          category: ticket.category,
+          priority: ticket.priority,
+          status: 'Open',
+          message: ticket.message,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('DatabaseService createSupportTicket error:', e);
+      return null;
+    }
+  }
+
+  public async fetchStudentTickets(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('DatabaseService fetchStudentTickets error:', e);
+      return [];
+    }
+  }
+
   public async deleteNote(id: string) {
     try {
       await supabase.from('notes').delete().eq('id', id);
@@ -344,4 +385,5 @@ class DatabaseService {
 }
 
 export const dbService = DatabaseService.getInstance();
+
 
