@@ -38,7 +38,8 @@ const FEATURE_CARDS = [
 
 export const MainWorkspace = () => {
   const { user } = useAuth();
-  const username = user?.email?.split('@')[0] || 'Student';
+  const rawName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Student';
+  const username = rawName.charAt(0).toUpperCase() + rawName.slice(1);
   
   const { 
     activeView, 
@@ -115,18 +116,18 @@ export const MainWorkspace = () => {
       {/* Dynamic Content Area */}
       <div className={`flex-1 w-full overflow-y-auto scroll-smooth flex flex-col ${
         activeView === 'home' 
-          ? 'max-w-4xl mx-auto px-4 lg:px-8 py-8 lg:py-12 items-center justify-center scrollbar-hide' 
+          ? 'max-w-4xl mx-auto px-4 lg:px-8 py-6 sm:py-8 lg:py-12 lg:items-center lg:justify-center scrollbar-hide' 
           : activeView === 'chat' 
-            ? 'px-4 sm:px-8 lg:px-12 pt-6 pb-48 sm:pb-44 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent' 
-            : 'max-w-4xl mx-auto px-4 lg:px-8 pt-6 pb-24 scrollbar-hide'
+            ? 'px-4 sm:px-8 lg:px-12 pt-6 pb-44 sm:pb-44 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent' 
+            : 'max-w-4xl mx-auto px-4 lg:px-8 pt-6 pb-28 sm:pb-24 scrollbar-hide'
       }`}>
         
         {activeView === 'home' ? (
           <>
             {/* Welcome State */}
             <div className="text-center mb-8 flex flex-col items-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-primary-text mb-3 tracking-tight">Goodday {username} 👋</h2>
-              <p className="text-secondary-text text-[15px] sm:text-[16px] font-medium tracking-wide">Ask Prime AI anything, upload a document, or select a suggested prompt.</p>
+              <h2 className="text-3xl sm:text-4xl font-bold text-primary-text mb-3 tracking-tight">Hello, {username} 👋</h2>
+              <p className="text-secondary-text text-[15px] sm:text-[16px] font-medium tracking-wide">Ask Prime anything, upload a document, or select a suggested prompt.</p>
             </div>
 
             <div className="w-full mb-8">

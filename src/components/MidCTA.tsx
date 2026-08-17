@@ -27,18 +27,12 @@ export const MidCTA = () => {
         <div className="absolute top-0 left-1/4 w-[300px] h-[300px] bg-primary/10 blur-[100px] pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-[300px] h-[300px] bg-blue-500/10 blur-[100px] pointer-events-none" />
 
-        {/* Left: Character Image */}
-        <div className="hidden lg:flex w-[220px] shrink-0 justify-center relative -ml-4">
-          <div className="absolute inset-0 bg-blue-500/10 blur-2xl rounded-full" />
-          <img src="/assets/mid_cta_character_1783259241117.png" alt="Student with tablet" className="w-[240px] h-[240px] object-contain relative z-10 hover:scale-105 transition-transform duration-500" />
-        </div>
-
-        {/* Center-Left: Text & Benefits */}
+        {/* Text & Benefits */}
         <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left z-10">
           <h2 className="text-[28px] md:text-[34px] font-bold text-primary-text mb-6 leading-tight">
             Ready to Transform<br />Your Academic Journey?
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 w-full max-w-[420px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-8 w-full max-w-[560px]">
             {benefits.map((benefit, idx) => (
               <div key={idx} className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
