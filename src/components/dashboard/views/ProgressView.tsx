@@ -3,44 +3,76 @@ import { motion } from 'framer-motion';
 import { TrendingUp, Target, Clock, BookOpen, Award, Zap, Sparkles, RefreshCw, Lightbulb } from 'lucide-react';
 import Markdown from 'markdown-to-jsx';
 import { primeEngine } from '../../../lib/primeAiEngine';
+import { dbService } from '../../../services/db/databaseService';
 
 export const ProgressView = () => {
   const [stats, setStats] = useState({
-    hoursStudied: 24.5,
-    tasksCompleted: 42,
-    accuracy: 88,
-    streak: 5
+    materialsCount: 0,
+    flashcardsCount: 0,
+    quizzesCount: 0,
+    accuracy: 85
   });
 
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('prime_stats');
-    if (saved) {
-      try {
-        setStats(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load saved stats:", e);
+    const loadRealProgress = async () => {
+      const savedUser = localStorage.getItem('prime_auth_session');
+      let userId: string | null = null;
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          userId = parsed?.user?.id || null;
+        } catch (e) {
+          console.error("Failed to parse user session in ProgressView:", e);
+        }
       }
-    } else {
-      localStorage.setItem('prime_stats', JSON.stringify(stats));
-    }
+
+      if (userId) {
+        const [mats, cards, quizzes] = await Promise.all([
+          dbService.fetchStudyMaterials(userId),
+          dbService.fetchFlashcards(userId),
+          dbService.fetchQuizResults(userId)
+        ]);
+
+        const materialsCount = mats?.length || 0;
+        const flashcardsCount = cards?.length || 0;
+        const quizzesCount = quizzes?.length || 0;
+        
+        let avgAccuracy = 85;
+        if (quizzes && quizzes.length > 0) {
+          const totalPct = quizzes.reduce((acc: number, q: any) => {
+            const pct = q.details?.percentage ?? Math.round((q.score / (q.total_questions || 1)) * 100);
+            return acc + pct;
+          }, 0);
+          avgAccuracy = Math.round(totalPct / quizzes.length);
+        }
+
+        setStats({
+          materialsCount,
+          flashcardsCount,
+          quizzesCount,
+          accuracy: avgAccuracy
+        });
+      }
+    };
+
+    loadRealProgress();
   }, []);
 
   const generateAIInsights = async () => {
     setIsGeneratingInsight(true);
     try {
       const prompt = `Analyze this student's current learning metrics:
-- Total Study Hours: ${stats.hoursStudied} hours
-- Completed Tasks: ${stats.tasksCompleted}
+- Total Study Materials: ${stats.materialsCount}
+- Saved Flashcards: ${stats.flashcardsCount}
+- Quizzes Completed: ${stats.quizzesCount}
 - Quiz Accuracy Average: ${stats.accuracy}%
-- Study Streak: ${stats.streak} Days
-- Top Subjects: Biology (85% mastery), Calculus (60% mastery), History (45% mastery), French (30% mastery)
 
 Provide:
 1. Short 2-sentence performance summary.
-2. 3 actionable, high-yield study productivity recommendations tailored to boost their weakest subject (French/History).`;
+2. 3 actionable, high-yield study productivity recommendations.`;
 
       const { stream } = await primeEngine.generateStream({
         mode: 'tutor',
@@ -83,10 +115,10 @@ Provide:
       {/* Top Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Hours Studied', value: `${stats.hoursStudied}h`, icon: Clock, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-          { label: 'Tasks Completed', value: stats.tasksCompleted, icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-          { label: 'Quiz Score Avg', value: `${stats.accuracy}%`, icon: Zap, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-          { label: 'Day Streak', value: `${stats.streak} Days`, icon: Award, color: 'text-purple-400', bg: 'bg-purple-400/10' },
+          { label: 'Study Materials', value: stats.materialsCount, icon: Clock, color: 'text-blue-400', bg: 'bg-blue-400/10' },
+          { label: 'Saved Flashcards', value: stats.flashcardsCount, icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+          { label: 'Quiz Accuracy Avg', value: `${stats.accuracy}%`, icon: Zap, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
+          { label: 'Quizzes Taken', value: stats.quizzesCount, icon: Award, color: 'text-purple-400', bg: 'bg-purple-400/10' },
         ].map((stat, idx) => (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
