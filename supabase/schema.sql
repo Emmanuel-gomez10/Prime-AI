@@ -216,3 +216,159 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ==========================================
+-- INDEX & STATUS COLUMN FOR FEATURE USAGE ATOMICITY
+-- ==========================================
+ALTER TABLE public.ai_usage ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'completed';
+CREATE INDEX IF NOT EXISTS idx_ai_usage_user_feature_time ON public.ai_usage(user_id, feature_name, created_at, success, status);
+
+-- ==========================================
+-- ATOMIC CONCURRENCY-SAFE AI USAGE RESERVATION RPC
+-- ==========================================
+CREATE OR REPLACE FUNCTION public.check_and_increment_ai_usage(
+  p_user_id UUID,
+  p_feature_name TEXT,
+  p_plan_limit INT,
+  p_rate_limit_per_min INT DEFAULT 10
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_effective_plan TEXT := 'free';
+  v_usage_count INT := 0;
+  v_recent_rate_count INT := 0;
+  v_window_start TIMESTAMPTZ := NOW() - INTERVAL '24 hours';
+  v_rate_window_start TIMESTAMPTZ := NOW() - INTERVAL '1 minute';
+  v_ai_enabled_val TEXT;
+  v_oldest_timestamp TIMESTAMPTZ;
+  v_seconds_until_reset INT := 0;
+  v_reservation_id UUID;
+BEGIN
+  -- 0. Acquire Transaction Advisory Lock (prevents concurrent race conditions)
+  PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text || '_' || p_feature_name));
+
+  -- 1. Check Emergency Shutdown (ai_provider_enabled in system_settings)
+  SELECT value INTO v_ai_enabled_val
+  FROM public.system_settings
+  WHERE key = 'ai_provider_enabled';
+
+  IF v_ai_enabled_val = 'false' OR v_ai_enabled_val = '"false"' THEN
+    RETURN jsonb_build_object(
+      'allowed', FALSE,
+      'reason', 'emergency_shutdown',
+      'message', 'Prime AI is currently undergoing safety maintenance. Non-AI tools remain fully functional.'
+    );
+  END IF;
+
+  -- 2. Fetch server-side user plan from subscriptions table
+  SELECT COALESCE(plan, 'free') INTO v_effective_plan
+  FROM public.subscriptions
+  WHERE user_id = p_user_id;
+
+  IF v_effective_plan IS NULL THEN
+    v_effective_plan := 'free';
+  END IF;
+
+  -- 3. Server-side Rate Limiting (rapid request protection)
+  SELECT COUNT(*) INTO v_recent_rate_count
+  FROM public.ai_usage
+  WHERE user_id = p_user_id
+    AND created_at >= v_rate_window_start;
+
+  IF v_recent_rate_count >= p_rate_limit_per_min THEN
+    RETURN jsonb_build_object(
+      'allowed', FALSE,
+      'reason', 'rate_limited',
+      'message', 'You are making AI requests too quickly. Please wait a moment before sending another request.',
+      'plan', v_effective_plan
+    );
+  END IF;
+
+  -- 4. Calculate usage in current 24-hour window (includes completed requests and recent pending reservations)
+  SELECT COUNT(*), MIN(created_at)
+  INTO v_usage_count, v_oldest_timestamp
+  FROM public.ai_usage
+  WHERE user_id = p_user_id
+    AND feature_name = p_feature_name
+    AND created_at >= v_window_start
+    AND (
+      status = 'completed' 
+      OR (status = 'pending' AND created_at >= NOW() - INTERVAL '5 minutes')
+      OR (status IS NULL AND success = TRUE)
+    );
+
+  IF v_oldest_timestamp IS NOT NULL THEN
+    v_seconds_until_reset := GREATEST(0, EXTRACT(EPOCH FROM (v_oldest_timestamp + INTERVAL '24 hours' - NOW()))::INT);
+  ELSE
+    v_seconds_until_reset := 0;
+  END IF;
+
+  -- 5. Enforce 24-hour limit
+  IF v_usage_count >= p_plan_limit THEN
+    RETURN jsonb_build_object(
+      'allowed', FALSE,
+      'reason', 'limit_exceeded',
+      'message', FORMAT('Daily limit reached for %s (%s requests per 24 hours).', p_feature_name, p_plan_limit),
+      'usage_count', v_usage_count,
+      'limit', p_plan_limit,
+      'plan', v_effective_plan,
+      'seconds_until_reset', v_seconds_until_reset
+    );
+  END IF;
+
+  -- 6. Atomically reserve quota slot before OpenAI call
+  INSERT INTO public.ai_usage (
+    user_id,
+    feature_name,
+    model_used,
+    success,
+    status
+  ) VALUES (
+    p_user_id,
+    p_feature_name,
+    'gpt-4o-mini',
+    FALSE,
+    'pending'
+  )
+  RETURNING id INTO v_reservation_id;
+
+  -- Request allowed and atomically reserved!
+  RETURN jsonb_build_object(
+    'allowed', TRUE,
+    'reservation_id', v_reservation_id,
+    'usage_count', v_usage_count + 1,
+    'limit', p_plan_limit,
+    'plan', v_effective_plan,
+    'remaining', GREATEST(0, p_plan_limit - (v_usage_count + 1)),
+    'seconds_until_reset', v_seconds_until_reset
+  );
+END;
+$$;
+
+-- ==========================================
+-- FINALIZE RESERVED AI USAGE RPC
+-- ==========================================
+CREATE OR REPLACE FUNCTION public.finalize_ai_usage_reservation(
+  p_reservation_id UUID,
+  p_model_used TEXT,
+  p_success BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.ai_usage
+  SET 
+    model_used = COALESCE(p_model_used, 'gpt-4o-mini'),
+    success = p_success,
+    status = CASE WHEN p_success THEN 'completed' ELSE 'failed' END
+  WHERE id = p_reservation_id;
+END;
+$$;
+

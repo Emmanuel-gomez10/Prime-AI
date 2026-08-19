@@ -1,23 +1,11 @@
-import OpenAI from 'openai';
-import { AI_CONFIG, getApiKey } from '../../config/ai';
+import { AI_CONFIG } from '../../config/ai';
 import { aiLogger } from './logger';
 import { categorizeAIError } from './errorCategorizer';
 import { supabase } from '../../lib/supabaseClient';
-
-export async function logAiUsageEvent(featureName: string, modelUsed: string, success: boolean = true) {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.id) return;
-    await supabase.from('ai_usage').insert({
-      user_id: session.user.id,
-      feature_name: featureName || 'AI Tutor',
-      model_used: modelUsed || 'gpt-4o-mini',
-      success,
-    });
-  } catch (err) {
-    console.error('Failed to log AI usage event:', err);
-  }
-}
+import { 
+  normalizeFeatureName, 
+  MAX_INPUT_CHARACTERS
+} from '../../config/subscriptions';
 
 export interface AIServiceAttachment {
   name: string;
@@ -39,33 +27,20 @@ export interface AIServiceResponseStream {
   usedModel: string;
 }
 
+const APPROVED_MODELS = new Set(['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo']);
+
 /**
- * Centralized AI Service
+ * Centralized AI Gateway Client
  * 
- * CRITICAL RULE: This is the ONLY place in the entire codebase where
- * `new OpenAI(...)` is called.
+ * SECURITY HARDENING (Phase B):
+ * - Authoritative usage check & atomic reservation occurs 100% server-side inside the Supabase Edge Function.
+ * - Browser pre-authorization calls have been removed from the client request path.
+ * - Browser client simply passes session JWT to the Edge Function streaming endpoint.
  */
 class AIService {
   private static instance: AIService;
-  private client: OpenAI | null = null;
-  private activeKey: string = '';
 
-  private constructor() {
-    this.syncKey();
-  }
-
-  private syncKey(): boolean {
-    const key = getApiKey();
-    if (key && key !== this.activeKey) {
-      this.activeKey = key;
-      this.client = new OpenAI({
-        apiKey: key,
-        dangerouslyAllowBrowser: true,
-      });
-      return true;
-    }
-    return Boolean(this.client);
-  }
+  private constructor() {}
 
   public static getInstance(): AIService {
     if (!AIService.instance) {
@@ -75,239 +50,154 @@ class AIService {
   }
 
   /**
-   * Executes AI streaming with automatic model fallback candidates.
+   * Invokes the Supabase Edge Function `openai-gateway` and returns a text stream.
    */
   public async generateStream(request: AIServiceRequest): Promise<AIServiceResponseStream> {
-    const key = getApiKey();
-    if (!key) {
-      console.error('[AI Technical Service Error]: Missing API Key');
-      throw new Error('Prime AI is temporarily unavailable. Please try again.');
-    }
-
-    if (!this.client || this.activeKey !== key) {
-      this.activeKey = key;
-      this.client = new OpenAI({
-        apiKey: key,
-        dangerouslyAllowBrowser: true,
-      });
-    }
-
-    // Check user account status and feature flags / system maintenance controls before execution
+    // ----------------------------------------------------
+    // STEP 1: AUTHENTICATION CHECK
+    // ----------------------------------------------------
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user?.id) {
-      // 1. Check user status (suspended)
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("status, is_admin, role")
-        .eq("id", session.user.id)
-        .maybeSingle();
+    if (!session?.user?.id || !session?.access_token) {
+      throw new Error("Authentication required to access Prime AI features. Please sign in.");
+    }
 
-      if (profile?.status === "suspended") {
-        throw new Error("Your student account is currently suspended. Please contact support.");
-      }
-
-      const isAdmin = Boolean(profile?.is_admin || profile?.role === "admin");
-
-      // 2. Check System Settings (maintenance_mode, daily_request_limit)
-      const { data: settingsData } = await supabase
-        .from("system_settings")
-        .select("key, value");
-
-      const settingsMap: Record<string, any> = {};
-      if (settingsData) {
-        for (const s of settingsData) {
-          settingsMap[s.key] = s.value;
-        }
-      }
-
-      if (settingsMap.maintenance_mode === true && !isAdmin) {
-        throw new Error("Prime AI is currently undergoing scheduled maintenance. Please check back shortly.");
-      }
-
-      // Sync active primary / fallback model from DB settings if set
-      if (settingsMap.primary_model) {
-        AI_CONFIG.primaryModel = settingsMap.primary_model;
-      }
-      if (settingsMap.fallback_model) {
-        AI_CONFIG.fallbackModels = [settingsMap.fallback_model];
-      }
-
-      // 3. Feature Flags check
-      if (settingsMap.feature_flags && Array.isArray(settingsMap.feature_flags)) {
-        const flagKeyMap: Record<string, string> = {
-          tutor: "ai_tutor",
-          "study-fetch": "study_summarizer",
-          flashcards: "flashcards",
-          "image-solver": "image_solver",
-          quiz: "quiz_generator",
-          essay: "essay_writer",
-        };
-        const flagKey = flagKeyMap[request.featureName] || request.featureName;
-        const targetFlag = settingsMap.feature_flags.find((f: any) => f.key === flagKey || f.name.toLowerCase() === request.featureName.toLowerCase());
-        if (targetFlag && targetFlag.enabled === false) {
-          throw new Error(`The ${targetFlag.name || request.featureName} feature is currently disabled by administrator policy.`);
-        }
-      }
-
-      // 4. Daily AI Request Limit Check against real ai_usage table
-      const dailyLimit = settingsMap.daily_request_limit ?? 50;
-      if (!isAdmin && dailyLimit > 0) {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-
-        const { count } = await supabase
-          .from("ai_usage")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", session.user.id)
-          .gte("created_at", todayStart.toISOString());
-
-        if ((count || 0) >= dailyLimit) {
-          throw new Error(`You have reached your daily limit of ${dailyLimit} AI requests. Upgrade or try again tomorrow.`);
-        }
+    // ----------------------------------------------------
+    // STEP 2: CLIENT INPUT SIZE PRE-VALIDATION
+    // ----------------------------------------------------
+    let totalInputLength = (request.userPrompt || '').length + (request.systemInstruction || '').length;
+    if (request.attachments && request.attachments.length > 0) {
+      for (const att of request.attachments) {
+        totalInputLength += (att.content || '').length + (att.base64 ? att.base64.length : 0);
       }
     }
 
-    // Candidate fallback chain: Primary model first, followed by configured fallback candidates
-    const candidateModels = Array.from(
-      new Set([AI_CONFIG.primaryModel, ...AI_CONFIG.fallbackModels])
-    );
+    if (totalInputLength > MAX_INPUT_CHARACTERS) {
+      throw new Error(`Request size exceeds maximum limit (${MAX_INPUT_CHARACTERS} characters). Please shorten your input.`);
+    }
 
-    let lastError: any = null;
+    // ----------------------------------------------------
+    // STEP 3: MODEL SELECTION & FEATURE NORMALIZATION
+    // ----------------------------------------------------
+    const normFeature = normalizeFeatureName(request.featureName);
+    let targetModel = AI_CONFIG.primaryModel;
+    if (!APPROVED_MODELS.has(targetModel)) {
+      targetModel = 'gpt-4o-mini';
+    }
 
-    for (let i = 0; i < candidateModels.length; i++) {
-      const modelName = candidateModels[i];
-      aiLogger.logRequest(request.featureName, modelName);
+    // ----------------------------------------------------
+    // STEP 4: INVOKE SUPABASE EDGE FUNCTION (OPENAI GATEWAY)
+    // ----------------------------------------------------
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://knvilxppzhugfhbltukp.supabase.co";
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_O5lUeI22TPUrbefwyTwsTQ_oFrVF3CF";
+    const functionUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/openai-gateway`;
 
-      try {
-        const startTime = Date.now();
+    aiLogger.logRequest(normFeature, targetModel);
+    const startTime = Date.now();
 
-        const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+    try {
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify({
+          featureName: normFeature,
+          systemInstruction: request.systemInstruction,
+          userPrompt: request.userPrompt,
+          attachments: request.attachments,
+          history: request.history,
+          requestedModel: targetModel,
+        }),
+      });
 
-        // 1. System instruction
-        if (request.systemInstruction) {
-          messages.push({
-            role: 'system',
-            content: request.systemInstruction,
-          });
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'AI Gateway request failed.' }));
+        throw new Error(errorData.error || `HTTP ${response.status}: AI service unavailable.`);
+      }
 
-        // 2. Chat history
-        if (request.history && request.history.length > 0) {
-          for (const item of request.history) {
-            messages.push({
-              role: item.role === 'model' ? 'assistant' : 'user',
-              content: item.content,
-            });
+      if (!response.body) {
+        throw new Error("No response stream received from AI Gateway.");
+      }
+
+      const executionTimeMs = Date.now() - startTime;
+      aiLogger.logSuccess({
+        feature: normFeature,
+        requestedModel: AI_CONFIG.primaryModel,
+        usedModel: targetModel,
+        timestamp: new Date().toISOString(),
+        executionTimeMs,
+      });
+
+      return {
+        stream: this.createEdgeStreamGenerator(response.body.getReader()),
+        usedModel: targetModel,
+      };
+
+    } catch (err: any) {
+      const categorized = categorizeAIError(err);
+      aiLogger.logError({
+        feature: normFeature,
+        requestedModel: targetModel,
+        timestamp: new Date().toISOString(),
+        errorType: categorized.category,
+        errorMessage: categorized.rawMessage,
+      });
+
+      throw new Error(categorized.userMessage);
+    }
+  }
+
+  /**
+   * Converts a ReadableStreamReader from the Edge Function into an AsyncGenerator of text chunks.
+   */
+  private async *createEdgeStreamGenerator(
+    reader: ReadableStreamDefaultReader<Uint8Array>
+  ): AsyncGenerator<string, void, unknown> {
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // keep incomplete line in buffer
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith(":")) continue; // ignore comments / heartbeats
+
+          if (trimmed === "data: [DONE]") {
+            break;
           }
-        }
 
-        // 3. User message parts (text + attachments)
-        const userContentParts: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
-
-        if (request.attachments && request.attachments.length > 0) {
-          for (const att of request.attachments) {
-            if (att.type === 'image' && att.base64) {
-              userContentParts.push({
-                type: 'image_url',
-                image_url: {
-                  url: att.base64,
-                },
-              });
-            } else {
-              userContentParts.push({
-                type: 'text',
-                text: `[ATTACHED DOCUMENT (${att.name})]:\n${att.content}\n--- END ATTACHMENT ---`,
-              });
+          if (trimmed.startsWith("data: ")) {
+            const dataStr = trimmed.slice(6);
+            try {
+              const parsed = JSON.parse(dataStr);
+              const textChunk = parsed.choices?.[0]?.delta?.content;
+              if (textChunk) {
+                yield textChunk;
+              }
+            } catch {
+              // Raw text chunk fallback
+              if (dataStr && !dataStr.startsWith("{")) {
+                yield dataStr;
+              }
             }
           }
         }
-
-        if (request.userPrompt) {
-          userContentParts.push({
-            type: 'text',
-            text: request.userPrompt,
-          });
-        }
-
-        if (userContentParts.length > 0) {
-          messages.push({
-            role: 'user',
-            content: userContentParts,
-          });
-        }
-
-        const rawStream = await this.client.chat.completions.create({
-          model: modelName,
-          messages,
-          max_tokens: AI_CONFIG.maxOutputTokens,
-          temperature: AI_CONFIG.temperature,
-          stream: true,
-        });
-
-        const executionTimeMs = Date.now() - startTime;
-        aiLogger.logSuccess({
-          feature: request.featureName,
-          requestedModel: AI_CONFIG.primaryModel,
-          usedModel: modelName,
-          timestamp: new Date().toISOString(),
-          executionTimeMs,
-        });
-
-        return {
-          stream: this.createAsyncGenerator(rawStream, request.featureName, modelName),
-          usedModel: modelName,
-        };
-
-      } catch (err: any) {
-        lastError = err;
-        const categorized = categorizeAIError(err);
-
-        aiLogger.logError({
-          feature: request.featureName,
-          requestedModel: modelName,
-          timestamp: new Date().toISOString(),
-          errorType: categorized.category,
-          errorMessage: categorized.rawMessage,
-        });
-
-        logAiUsageEvent(request.featureName, modelName, false).catch(() => {});
-
-        // If candidate failed and there is a next candidate in fallback chain, log & continue loop
-        if (i < candidateModels.length - 1 && categorized.isRetryable) {
-          const nextModel = candidateModels[i + 1];
-          aiLogger.logFallback(request.featureName, modelName, nextModel, categorized.category);
-          // 1-second pause to allow rate limits to recover before next candidate
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          continue;
-        }
-
-        // If non-retryable or end of chain, throw clean categorized user message
-        throw new Error(categorized.userMessage);
       }
-    }
-
-    const finalCategorized = categorizeAIError(lastError);
-    throw new Error(finalCategorized.userMessage);
-  }
-
-  private async *createAsyncGenerator(
-    stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>,
-    featureName: string,
-    modelName: string
-  ): AsyncGenerator<string, void, unknown> {
-    try {
-      for await (const chunk of stream) {
-        const text = chunk.choices[0]?.delta?.content;
-        if (text) {
-          yield text;
-        }
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {
+        // Ignore lock release errors
       }
-      // Stream completed successfully - record completed usage event
-      logAiUsageEvent(featureName, modelName, true).catch(() => {});
-    } catch (err) {
-      // Stream failed mid-transmission - record failed usage event
-      logAiUsageEvent(featureName, modelName, false).catch(() => {});
-      throw err;
     }
   }
 }

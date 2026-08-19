@@ -1,7 +1,7 @@
 /**
  * Central AI Configuration
  * 
- * Single source of truth for all AI-related models, fallbacks, timeouts, and API settings.
+ * Single source of truth for all AI-related models, fallbacks, timeouts, and settings.
  * No hardcoded model names should exist anywhere else in the application.
  */
 
@@ -30,18 +30,4 @@ export const AI_CONFIG: AIModelConfig = {
   fallbackModels: getEnvFallbackModels(),
   maxOutputTokens: 2500,
   temperature: 0.7,
-};
-
-export const getApiKey = (): string => {
-  const envKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (envKey && typeof envKey === 'string' && envKey.trim() !== '') {
-    return envKey.trim();
-  }
-  if (typeof window !== 'undefined') {
-    const localKey = localStorage.getItem('prime_openai_api_key');
-    if (localKey && typeof localKey === 'string' && localKey.trim() !== '') {
-      return localKey.trim();
-    }
-  }
-  return '';
 };

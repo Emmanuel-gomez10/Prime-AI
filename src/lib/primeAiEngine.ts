@@ -8,6 +8,11 @@ export type EngineMode =
   | 'flashcards' 
   | 'quiz' 
   | 'essay' 
+  | 'past_questions'
+  | 'past-questions'
+  | 'academic_helper'
+  | 'academic-helper'
+  | 'exam_mode'
   | 'general';
 
 export interface FileAttachment extends AIServiceAttachment {}
@@ -52,6 +57,12 @@ const SYSTEM_PROMPTS: Record<EngineMode, string> = {
 
   essay: `You are Prime AI Academic Writing Assistant.
 - Help outline, draft, critique, and refine academic essays, lab reports, and research papers with proper academic tone.`,
+
+  past_questions: `You are Prime AI Past Questions Solver. Provide clear step-by-step solutions to university exam questions.`,
+  'past-questions': `You are Prime AI Past Questions Solver. Provide clear step-by-step solutions to university exam questions.`,
+  academic_helper: `You are Prime AI Academic Helper. Assist students with coursework and university study topics.`,
+  'academic-helper': `You are Prime AI Academic Helper. Assist students with coursework and university study topics.`,
+  exam_mode: `You are Prime AI Exam Mode Assistant. Help students prepare for university exams.`,
 
   general: `You are Prime AI, an all-in-one AI study companion for students.`
 };
