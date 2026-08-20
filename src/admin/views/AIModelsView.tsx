@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Cpu, RefreshCw, Zap } from "lucide-react";
+import { Cpu, RefreshCw, Zap, ShieldAlert, Power } from "lucide-react";
 import { toast } from "sonner";
 import { adminService } from "../../services/admin/adminService";
 import { AI_CONFIG } from "../../config/ai";
@@ -25,6 +25,7 @@ export const AIModelsView: React.FC = () => {
   const [fallbackModel, setFallbackModel] = useState(AI_CONFIG.fallbackModels[0] || "gpt-4o-mini");
   const [dailyLimit, setDailyLimit] = useState<number>(50);
   const [monthlyLimit, setMonthlyLimit] = useState<number>(1000);
+  const [aiProviderEnabled, setAiProviderEnabled] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -44,9 +45,26 @@ export const AIModelsView: React.FC = () => {
       if (typeof settings.monthly_request_limit === "number") {
         setMonthlyLimit(settings.monthly_request_limit);
       }
+      if (settings.ai_provider_enabled !== undefined) {
+        setAiProviderEnabled(settings.ai_provider_enabled === true || settings.ai_provider_enabled === "true");
+      }
     };
     loadSettings();
   }, []);
+
+  const handleToggleEmergencyShutdown = async () => {
+    const nextState = !aiProviderEnabled;
+    setAiProviderEnabled(nextState);
+    setSaving(true);
+    const ok = await adminService.saveSystemSetting("ai_provider_enabled", nextState);
+    setSaving(false);
+
+    if (ok) {
+      toast.success(`AI Provider ${nextState ? "ENABLED" : "DISABLED (Emergency Protection Active)"}`);
+    } else {
+      toast.error("Failed to update AI provider setting");
+    }
+  };
 
   const handleSetDefault = async (modelName: string) => {
     setActiveModel(modelName);
@@ -123,6 +141,52 @@ export const AIModelsView: React.FC = () => {
           >
             <RefreshCw className="w-3.5 h-3.5 text-[#41E5FF]" />
             <span>Sync Engine</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Emergency AI Provider Protection Switch */}
+      <div className={`rounded-2xl border p-6 shadow-xl transition-all ${
+        aiProviderEnabled 
+          ? "bg-[#121428]/80 border-white/10" 
+          : "bg-red-500/10 border-red-500/30"
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className={`p-3 rounded-2xl border ${
+              aiProviderEnabled 
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                : "bg-red-500/20 border-red-500/40 text-red-400 animate-pulse"
+            }`}>
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-white">Emergency AI Provider Protection</h2>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                  aiProviderEnabled 
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" 
+                    : "bg-red-500/20 text-red-400 border-red-500/30"
+                }`}>
+                  {aiProviderEnabled ? "AI Provider Active" : "Emergency Shutdown Active"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1 max-w-2xl">
+                Instantly disable server-side requests to OpenAI API to prevent unexpected cost spikes during emergencies. Non-AI student tools remain 100% operational.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleToggleEmergencyShutdown}
+            className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shrink-0 border ${
+              aiProviderEnabled
+                ? "bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/40"
+                : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40"
+            }`}
+          >
+            <Power className="w-4 h-4" />
+            {aiProviderEnabled ? "Activate Emergency Shutdown" : "Re-Enable AI Provider"}
           </button>
         </div>
       </div>

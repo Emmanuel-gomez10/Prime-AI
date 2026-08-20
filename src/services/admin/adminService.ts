@@ -52,6 +52,7 @@ export interface SystemSettingsRecord {
   daily_request_limit: number;
   monthly_request_limit: number;
   premium_monthly_price: number;
+  ai_provider_enabled?: boolean | string;
 }
 
 export interface AnnouncementRecord {

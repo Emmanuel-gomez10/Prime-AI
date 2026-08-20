@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookMarked, ChevronLeft, ChevronRight, RotateCcw, Plus, Sparkles, X, Loader2, Trash2 } from 'lucide-react';
+import { BookMarked, ChevronLeft, ChevronRight, RotateCcw, Plus, Sparkles, X, Loader2, Trash2, Clock } from 'lucide-react';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { processFileClientSide } from '../../../lib/documentProcessor';
 import { useAuth } from '../../../contexts/AuthContext';
 import { dbService } from '../../../services/db/databaseService';
+import { useFeatureUsage } from '../../../hooks/useFeatureUsage';
 
 interface Flashcard {
   id: string;
@@ -22,11 +23,12 @@ interface Deck {
 
 export const FlashcardsView = () => {
   const { user } = useAuth();
+  const usage = useFeatureUsage('flashcards');
   const [decks, setDecks] = useState<Deck[]>([]);
   const [activeDeck, setActiveDeck] = useState<Deck | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-
+  const [limitError, setLimitError] = useState<string | null>(null);
 
   // Creation Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -60,7 +62,7 @@ export const FlashcardsView = () => {
           });
 
           const formattedDecks: Deck[] = Object.keys(grouped).map((title, idx) => ({
-            id: `db-deck-${idx}`,
+            id: `db_deck_${idx}`,
             title,
             cards: grouped[title],
             createdAt: Date.now(),
@@ -75,38 +77,15 @@ export const FlashcardsView = () => {
       if (saved) {
         try {
           setDecks(JSON.parse(saved));
+          return;
         } catch (e) {
           console.error("Failed to parse saved flashcard decks:", e);
         }
-      } else {
-        const defaultDecks: Deck[] = [
-          {
-            id: '1',
-            title: 'Cellular Biology Basics',
-            createdAt: Date.now(),
-            cards: [
-              { id: '1-1', front: 'What is the powerhouse of the cell?', back: 'Mitochondria' },
-              { id: '1-2', front: 'What organelle is responsible for protein synthesis?', back: 'Ribosome' },
-              { id: '1-3', front: 'What is the process of cell division called?', back: 'Mitosis' }
-            ]
-          },
-          {
-            id: '2',
-            title: 'World History: WW2',
-            createdAt: Date.now(),
-            cards: [
-              { id: '2-1', front: 'In what year did World War II end?', back: '1945' },
-              { id: '2-2', front: 'What was the code name for the Battle of Normandy?', back: 'Operation Overlord' }
-            ]
-          }
-        ];
-        setDecks(defaultDecks);
-        localStorage.setItem('prime_flashcard_decks_v2', JSON.stringify(defaultDecks));
       }
     };
 
     loadFlashcards();
-  }, [user]);
+  }, [user?.id]);
 
   const saveDecks = (updatedDecks: Deck[]) => {
     setDecks(updatedDecks);
@@ -168,6 +147,12 @@ export const FlashcardsView = () => {
 
   // AI Flashcard Generation handler
   const handleAIGenerate = async () => {
+    if (usage.isExhausted) {
+      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+      setIsCreateModalOpen(false);
+      return;
+    }
+
     if (!newDeckTitle.trim()) {
       alert("Please enter a deck title.");
       return;
@@ -177,7 +162,9 @@ export const FlashcardsView = () => {
       return;
     }
 
+    setLimitError(null);
     setIsGenerating(true);
+
     try {
       let documentContent = '';
       if (attachedFile) {
@@ -185,20 +172,21 @@ export const FlashcardsView = () => {
         documentContent = processed.content;
       }
 
-      const userPrompt = `Generate EXACTLY ${cardCount} flashcards for study deck "${newDeckTitle}".
-Topic/Notes: ${aiTopicOrNotes}
-${documentContent ? `Attached Content:\n${documentContent.slice(0, 4000)}` : ''}
+      const prompt = `Generate EXACTLY ${cardCount} active-recall study flashcards for topic/deck: "${newDeckTitle}".
+User Notes/Prompt: ${aiTopicOrNotes}
+${documentContent ? `Attached Document Text:\n${documentContent.slice(0, 4000)}` : ''}
 
-Output ONLY a raw JSON array of objects with "front" and "back" string properties. Do not output extra markdown text.
-Example format:
+Output ONLY a raw JSON array of objects with the following schema:
 [
-  {"front": "Question 1", "back": "Answer 1"},
-  {"front": "Question 2", "back": "Answer 2"}
+  {
+    "front": "Question or prompt for active recall",
+    "back": "Clear, concise answer or explanation"
+  }
 ]`;
 
       const { stream } = await primeEngine.generateStream({
         mode: 'flashcards',
-        userPrompt,
+        userPrompt: prompt,
       });
 
       let responseText = '';
@@ -206,31 +194,27 @@ Example format:
         responseText += chunk;
       }
 
-      // Parse JSON from response
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       let parsedCards: Array<{ front: string; back: string }> = [];
-
-      if (jsonMatch) {
-        parsedCards = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("Invalid response structure from AI Engine");
+      try {
+        const cleanJson = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        parsedCards = JSON.parse(cleanJson);
+      } catch (e) {
+        console.error("Failed to parse flashcard JSON:", e);
       }
 
-      const generatedCards: Flashcard[] = parsedCards.map((c, i) => ({
-        id: `${Date.now()}-${i}`,
-        front: c.front,
-        back: c.back,
-      }));
+      if (!parsedCards || parsedCards.length === 0) {
+        throw new Error("Unable to parse flashcards from AI response.");
+      }
 
       const newDeck: Deck = {
         id: Date.now().toString(),
         title: newDeckTitle,
-        cards: generatedCards,
+        cards: parsedCards.map((c, i) => ({ id: `${Date.now()}-${i}`, front: c.front, back: c.back })),
         createdAt: Date.now(),
       };
 
       if (user?.id) {
-        generatedCards.forEach((c) => {
+        parsedCards.forEach((c) => {
           dbService.saveFlashcard(user.id, {
             deck_title: newDeckTitle,
             front: c.front,
@@ -244,9 +228,11 @@ Example format:
       setIsCreateModalOpen(false);
       resetModalState();
       openDeck(newDeck);
+      usage.refetch();
     } catch (err: any) {
-      console.error("AI Flashcard generation failed:", err);
-      alert(`Failed to generate flashcards: ${err?.message || 'Unknown error'}`);
+      console.error("Flashcards generation failed:", err);
+      setLimitError(err?.message || 'Failed to generate flashcards.');
+      usage.refetch();
     } finally {
       setIsGenerating(false);
     }
@@ -300,20 +286,45 @@ Example format:
       {!activeDeck ? (
         // Deck Selection View
         <>
-          <div className="mb-6 shrink-0 flex items-center justify-between">
+          <div className="mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-primary-text mb-1 tracking-tight flex items-center gap-2">
-                <BookMarked className="w-6 h-6 text-purple-400" /> Flashcard Generator & Decks
-              </h2>
-              <p className="text-secondary-text text-[14px]">Generate active recall flashcards automatically or create custom study decks.</p>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl sm:text-3xl font-bold text-primary-text tracking-tight flex items-center gap-2">
+                  <BookMarked className="w-6 h-6 text-purple-400" /> Flashcard Generator & Decks
+                </h2>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                  usage.remaining === 0 
+                    ? 'bg-red-500/20 text-red-400 border-red-500/30' 
+                    : usage.remaining === 1 
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
+                    : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                }`}>
+                  {usage.remaining} / {usage.limit} uses remaining (24h)
+                </span>
+              </div>
+              <p className="text-secondary-text text-[14px] mt-1">Generate active recall flashcards automatically or create custom study decks.</p>
             </div>
             <button 
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-primary hover:from-purple-500 hover:to-primary/90 text-primary-text rounded-xl font-semibold transition-all text-sm shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-105"
+              onClick={() => {
+                if (usage.isExhausted) {
+                  setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+                  return;
+                }
+                setLimitError(null);
+                setIsCreateModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-primary hover:from-purple-500 hover:to-primary/90 text-primary-text rounded-xl font-semibold transition-all text-sm shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-105 shrink-0 self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" /> Create Deck
             </button>
           </div>
+
+          {limitError && (
+            <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs sm:text-sm flex items-center gap-3">
+              <Clock className="w-5 h-5 text-red-400 shrink-0" />
+              <span>{limitError}</span>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto scrollbar-hide pb-20">
             {decks.length === 0 ? (

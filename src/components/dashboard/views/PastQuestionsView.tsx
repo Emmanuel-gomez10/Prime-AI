@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileQuestion, Search, Sparkles, ChevronRight, X, Loader2, BookOpen, School, Layers } from 'lucide-react';
+import { FileQuestion, Search, Sparkles, ChevronRight, X, Loader2, BookOpen, School, Layers, Clock } from 'lucide-react';
 import Markdown from 'markdown-to-jsx';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { UNIZIK_FACULTIES, UNIVERSITIES_LIST } from '../../../data/unizikData';
 import { adminService } from '../../../services/admin/adminService';
+import { useFeatureUsage } from '../../../hooks/useFeatureUsage';
 
 export interface PastQuestionItem {
   id: string;
@@ -25,12 +26,14 @@ const YEARS = ['All Years', '2023', '2022', '2021', '2020', '2019', '2018'];
 
 export const PastQuestionsView = () => {
   const { sendMessage, createNewThread } = useWorkspace();
+  const usage = useFeatureUsage('past_questions');
   const [questions, setQuestions] = useState<PastQuestionItem[]>([]);
   const [selectedUniversity, setSelectedUniversity] = useState('UNIZIK (Nnamdi Azikiwe University)');
   const [selectedFaculty, setSelectedFaculty] = useState('All Faculties');
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [selectedYear, setSelectedYear] = useState('All Years');
   const [searchQuery, setSearchQuery] = useState('');
+  const [limitError, setLimitError] = useState<string | null>(null);
 
   // AI Auto-Generation State
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
@@ -168,6 +171,12 @@ Return ONLY a valid JSON array of objects with schema:
   };
 
   const requestAISolution = async (q: PastQuestionItem) => {
+    if (usage.isExhausted) {
+      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+      return;
+    }
+
+    setLimitError(null);
     setActiveQuestion(q);
     setAiSolution(q.aiExplanation || null);
     setIsSolving(true);
@@ -183,7 +192,7 @@ Provide:
 3. Key formulas or rules applied.`;
 
       const { stream } = await primeEngine.generateStream({
-        mode: 'tutor',
+        mode: 'past_questions',
         userPrompt: prompt,
       });
 
@@ -192,9 +201,11 @@ Provide:
         fullText += chunk;
         setAiSolution(fullText);
       }
+      usage.refetch();
     } catch (err: any) {
       console.error("Failed to generate solution:", err);
-      alert(`Failed to solve past question: ${err?.message || 'Unknown error'}`);
+      setLimitError(err?.message || 'Failed to solve past question.');
+      usage.refetch();
     } finally {
       setIsSolving(false);
     }
@@ -209,14 +220,32 @@ Provide:
     <div className="flex-1 w-full max-w-5xl mx-auto px-4 lg:px-8 py-6 flex flex-col h-full overflow-hidden">
       <div className="mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-primary-text mb-1 tracking-tight flex items-center gap-2">
-            <FileQuestion className="w-6 h-6 text-amber-400" /> Past Questions Library
-          </h2>
-          <p className="text-secondary-text text-[14px]">Filter exam questions by university, faculty, department & year. Generate instant AI past questions.</p>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl sm:text-3xl font-bold text-primary-text tracking-tight flex items-center gap-2">
+              <FileQuestion className="w-6 h-6 text-amber-400" /> Past Questions Library
+            </h2>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+              usage.remaining === 0 
+                ? 'bg-red-500/20 text-red-400 border-red-500/30' 
+                : usage.remaining === 1 
+                ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
+                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+            }`}>
+              {usage.remaining} / {usage.limit} uses remaining (24h)
+            </span>
+          </div>
+          <p className="text-secondary-text text-[14px] mt-1">Filter exam questions by university, faculty, department & year. Generate instant AI past questions.</p>
         </div>
 
         <button
-          onClick={handleAIGenerateDepartmentQuestions}
+          onClick={() => {
+            if (usage.isExhausted) {
+              setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+              return;
+            }
+            setLimitError(null);
+            handleAIGenerateDepartmentQuestions();
+          }}
           disabled={isGeneratingQuestions}
           className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold rounded-xl transition-all text-xs sm:text-sm shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-50 shrink-0 self-start sm:self-auto"
         >
@@ -224,6 +253,13 @@ Provide:
           <span>{isGeneratingQuestions ? 'Generating Questions...' : '✨ AI Generate Department Past Questions'}</span>
         </button>
       </div>
+
+      {limitError && (
+        <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs sm:text-sm flex items-center gap-3">
+          <Clock className="w-5 h-5 text-red-400 shrink-0" />
+          <span>{limitError}</span>
+        </div>
+      )}
 
       {/* Filter & Search Bar */}
       <div className="p-5 rounded-[24px] bg-surface border border-divider shadow-lg mb-6 shrink-0 space-y-4">

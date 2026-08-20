@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Image as ImageIcon, Loader2, CheckCircle2, ChevronRight, Camera, X, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Loader2, CheckCircle2, ChevronRight, Camera, X, RefreshCw, Sparkles, Trash2, Clock } from 'lucide-react';
 import Markdown from 'markdown-to-jsx';
 
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useFeatureUsage } from '../../../hooks/useFeatureUsage';
 
 interface Solution {
   id: string;
@@ -17,11 +18,13 @@ interface Solution {
 
 export const ImageSolverView = () => {
   const { sendMessage, createNewThread } = useWorkspace();
+  const usage = useFeatureUsage('image_solver');
   const [history, setHistory] = useState<Solution[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeSolution, setActiveSolution] = useState<Solution | null>(null);
+  const [limitError, setLimitError] = useState<string | null>(null);
   
   // Camera Modal state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -46,6 +49,11 @@ export const ImageSolverView = () => {
 
   // Camera Management
   const openCamera = async () => {
+    if (usage.isExhausted) {
+      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+      return;
+    }
+    setLimitError(null);
     setIsCameraOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -110,6 +118,11 @@ export const ImageSolverView = () => {
   };
 
   const handleFileSelect = (file: File) => {
+    if (usage.isExhausted) {
+      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+      return;
+    }
+    setLimitError(null);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
@@ -119,6 +132,12 @@ export const ImageSolverView = () => {
   };
 
   const processImageBase64 = async (base64Data: string, filename: string) => {
+    if (usage.isExhausted) {
+      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+      return;
+    }
+
+    setLimitError(null);
     setCurrentImage(base64Data);
     setIsAnalyzing(true);
     setActiveSolution(null);
@@ -176,9 +195,11 @@ export const ImageSolverView = () => {
       const updated = [solutionObj, ...history];
       saveHistory(updated);
       setActiveSolution(solutionObj);
+      usage.refetch();
     } catch (err: any) {
       console.error("Image solver processing failed:", err);
-      alert(`Failed to solve image problem: ${err?.message || 'Unknown error'}`);
+      setLimitError(err?.message || 'Failed to process image solution.');
+      usage.refetch();
     } finally {
       setIsAnalyzing(false);
     }
@@ -202,26 +223,45 @@ export const ImageSolverView = () => {
     setCurrentImage(null);
     setActiveSolution(null);
     setIsAnalyzing(false);
+    setLimitError(null);
   };
 
   return (
     <div className="flex-1 w-full max-w-5xl mx-auto px-4 lg:px-8 py-6 flex flex-col h-full overflow-hidden">
-      <div className="mb-6 shrink-0 flex items-center justify-between">
+      <div className="mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-primary-text mb-1 tracking-tight flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-yellow-400" /> Image & Assignment Solver
-          </h2>
-          <p className="text-secondary-text text-[14px]">Snap or upload homework problems, equations, or diagrams for step-by-step solutions.</p>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl sm:text-3xl font-bold text-primary-text tracking-tight flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-yellow-400" /> Image & Assignment Solver
+            </h2>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+              usage.remaining === 0 
+                ? 'bg-red-500/20 text-red-400 border-red-500/30' 
+                : usage.remaining === 1 
+                ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
+                : 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20'
+            }`}>
+              {usage.remaining} / {usage.limit} uses remaining (24h)
+            </span>
+          </div>
+          <p className="text-secondary-text text-[14px] mt-1">Snap or upload homework problems, equations, or diagrams for step-by-step solutions.</p>
         </div>
         {(currentImage || activeSolution) && (
           <button 
             onClick={resetView}
-            className="px-4 py-2 bg-card-hover hover:bg-white/15 text-primary-text rounded-xl font-medium transition-colors text-xs sm:text-sm border border-divider flex items-center gap-1.5"
+            className="px-4 py-2 bg-card-hover hover:bg-white/15 text-primary-text rounded-xl font-medium transition-colors text-xs sm:text-sm border border-divider flex items-center gap-1.5 self-start sm:self-auto"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Solve Another
           </button>
         )}
       </div>
+
+      {limitError && (
+        <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs sm:text-sm flex items-center gap-3">
+          <Clock className="w-5 h-5 text-red-400 shrink-0" />
+          <span>{limitError}</span>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto scrollbar-hide pb-20">
         {!currentImage && !activeSolution ? (

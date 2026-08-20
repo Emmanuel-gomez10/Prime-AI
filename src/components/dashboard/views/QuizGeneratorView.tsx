@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileQuestion, Plus, Sparkles, X, Loader2, CheckCircle2, XCircle, RotateCcw, ArrowRight, Award, Trash2, School, Layers, BookOpen } from 'lucide-react';
+import { FileQuestion, Plus, Sparkles, X, Loader2, CheckCircle2, XCircle, RotateCcw, ArrowRight, Award, Trash2, School, Layers, BookOpen, Clock } from 'lucide-react';
 import Markdown from 'markdown-to-jsx';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { processFileClientSide } from '../../../lib/documentProcessor';
 import { useAuth } from '../../../contexts/AuthContext';
 import { dbService } from '../../../services/db/databaseService';
 import { UNIZIK_FACULTIES, UNIVERSITIES_LIST } from '../../../data/unizikData';
+import { useFeatureUsage } from '../../../hooks/useFeatureUsage';
 
 interface QuizQuestion {
   id: string;
@@ -36,8 +37,10 @@ interface QuizResult {
 
 export const QuizGeneratorView = () => {
   const { user } = useAuth();
+  const usage = useFeatureUsage('quiz_generator');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
+  const [limitError, setLimitError] = useState<string | null>(null);
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -64,55 +67,10 @@ export const QuizGeneratorView = () => {
     if (saved) {
       try {
         setQuizzes(JSON.parse(saved));
+        return;
       } catch (e) {
         console.error("Failed to parse saved quizzes:", e);
       }
-    } else {
-      const defaultQuizzes: Quiz[] = [
-        {
-          id: '1',
-          title: 'UNIZIK CSC201: Data Structures & Algorithms',
-          university: 'UNIZIK (Nnamdi Azikiwe University)',
-          faculty: 'Faculty of Physical Sciences',
-          department: 'Computer Science',
-          createdAt: Date.now(),
-          questions: [
-            {
-              id: 'q1',
-              question: 'Which data structure follows the Last-In, First-Out (LIFO) principle in UNIZIK CSC201 stack implementations?',
-              options: ['Queue', 'Stack', 'Linked List', 'Binary Tree'],
-              correctOptionIndex: 1,
-              explanation: 'A Stack operates under LIFO where elements added last are popped first.'
-            },
-            {
-              id: 'q2',
-              question: 'What is the average time complexity of searching in a Hash Table with good hash distribution?',
-              options: ['O(1)', 'O(n)', 'O(log n)', 'O(n^2)'],
-              correctOptionIndex: 0,
-              explanation: 'Hash tables offer O(1) constant time complexity for average search lookups.'
-            }
-          ]
-        },
-        {
-          id: '2',
-          title: 'UNIZIK EEE201: Circuit Theory I',
-          university: 'UNIZIK (Nnamdi Azikiwe University)',
-          faculty: 'Faculty of Engineering',
-          department: 'Electrical & Electronic Engineering',
-          createdAt: Date.now() - 3600000,
-          questions: [
-            {
-              id: 'q1_eee',
-              question: "According to Kirchhoff's Voltage Law (KVL), what is the algebraic sum of all voltages around a closed circuit loop?",
-              options: ['Equal to current', 'Zero (0)', 'Infinity', 'Equal to source resistance'],
-              correctOptionIndex: 1,
-              explanation: 'KVL states that the algebraic sum of electrical potential differences (voltages) around any closed loop is zero.'
-            }
-          ]
-        }
-      ];
-      setQuizzes(defaultQuizzes);
-      localStorage.setItem('prime_quizzes_v3', JSON.stringify(defaultQuizzes));
     }
   }, []);
 
@@ -209,12 +167,20 @@ export const QuizGeneratorView = () => {
   };
 
   const handleGenerateQuiz = async () => {
+    if (usage.isExhausted) {
+      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+      setIsCreateModalOpen(false);
+      return;
+    }
+
     if (!quizTitle.trim()) {
       alert("Please enter a quiz title.");
       return;
     }
 
+    setLimitError(null);
     setIsGenerating(true);
+
     try {
       let documentContent = '';
       if (attachedFile) {
@@ -247,18 +213,23 @@ Output ONLY a raw JSON array of objects with the following schema:
         responseText += chunk;
       }
 
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-      let parsedQuestions: Array<{
-        question: string;
-        options: string[];
-        correctOptionIndex: number;
-        explanation: string;
-      }> = [];
+      let parsedQuestions: QuizQuestion[] = [];
+      try {
+        const cleanJson = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const rawArray = JSON.parse(cleanJson);
+        parsedQuestions = rawArray.map((q: any, idx: number) => ({
+          id: `q_${Date.now()}_${idx}`,
+          question: q.question,
+          options: q.options,
+          correctOptionIndex: q.correctOptionIndex ?? 0,
+          explanation: q.explanation || 'Refer to course lecture notes.',
+        }));
+      } catch (e) {
+        console.error("Failed to parse AI quiz JSON:", e);
+      }
 
-      if (jsonMatch) {
-        parsedQuestions = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("Failed to parse Quiz JSON structure from AI Engine");
+      if (parsedQuestions.length === 0) {
+        throw new Error("Unable to parse structured quiz questions from AI response.");
       }
 
       const newQuiz: Quiz = {
@@ -267,23 +238,19 @@ Output ONLY a raw JSON array of objects with the following schema:
         university: selectedUniversity,
         faculty: selectedFaculty,
         department: selectedDepartment,
+        questions: parsedQuestions,
         createdAt: Date.now(),
-        questions: parsedQuestions.map((q, i) => ({
-          id: `${Date.now()}-${i}`,
-          question: q.question,
-          options: q.options,
-          correctOptionIndex: q.correctOptionIndex,
-          explanation: q.explanation,
-        })),
       };
 
       const updated = [newQuiz, ...quizzes];
       saveQuizzes(updated);
       setIsCreateModalOpen(false);
       startQuiz(newQuiz);
+      usage.refetch();
     } catch (err: any) {
       console.error("Quiz generation failed:", err);
-      alert(`Failed to generate quiz: ${err?.message || 'Unknown error'}`);
+      setLimitError(err?.message || 'Failed to generate quiz.');
+      usage.refetch();
     } finally {
       setIsGenerating(false);
     }
@@ -296,18 +263,43 @@ Output ONLY a raw JSON array of objects with the following schema:
         <>
           <div className="mb-6 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-primary-text mb-1 tracking-tight flex items-center gap-2">
-                <FileQuestion className="w-6 h-6 text-blue-400" /> AI Quiz Generator
-              </h2>
-              <p className="text-secondary-text text-[14px]">Generate practice quizzes by university, faculty & department with instant scores & explanations.</p>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl sm:text-3xl font-bold text-primary-text tracking-tight flex items-center gap-2">
+                  <FileQuestion className="w-6 h-6 text-blue-400" /> AI Quiz Generator
+                </h2>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                  usage.remaining === 0 
+                    ? 'bg-red-500/20 text-red-400 border-red-500/30' 
+                    : usage.remaining === 1 
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
+                    : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                }`}>
+                  {usage.remaining} / {usage.limit} uses remaining (24h)
+                </span>
+              </div>
+              <p className="text-secondary-text text-[14px] mt-1">Generate practice quizzes by university, faculty & department with instant scores & explanations.</p>
             </div>
             <button 
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => {
+                if (usage.isExhausted) {
+                  setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
+                  return;
+                }
+                setLimitError(null);
+                setIsCreateModalOpen(true);
+              }}
               className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-primary hover:from-blue-500 hover:to-primary/90 text-primary-text rounded-xl font-semibold transition-all text-sm shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 shrink-0 self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" /> Create Department Quiz
             </button>
           </div>
+
+          {limitError && (
+            <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs sm:text-sm flex items-center gap-3">
+              <Clock className="w-5 h-5 text-red-400 shrink-0" />
+              <span>{limitError}</span>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto scrollbar-hide pb-20">
             {quizzes.length === 0 ? (

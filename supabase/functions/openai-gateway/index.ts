@@ -34,15 +34,22 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
 
-    // 0. Strict Service Role Key Check (Safely fail if unconfigured)
+    const secretKeys = JSON.parse(
+      Deno.env.get("SUPABASE_SECRET_KEYS") || "{}"
+    );
+
+    const supabaseServiceKey = secretKeys["default"];
+
     if (!supabaseServiceKey) {
-      console.error("[CRITICAL GATEWAY CONFIG ERROR]: SUPABASE_SERVICE_ROLE_KEY is not configured.");
+      console.error("Supabase secret key is not configured.");
       return new Response(
-        JSON.stringify({ error: "AI Gateway server configuration error." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "AI service temporarily unavailable. Please try again." }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
