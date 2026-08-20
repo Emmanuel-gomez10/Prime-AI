@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PenTool, Download, Copy, Sparkles, RefreshCw, Type, AlignLeft, Check, Wand2, X, ArrowRight, Clock } from 'lucide-react';
+import { PenTool, Download, Copy, Sparkles, RefreshCw, Type, AlignLeft, Check, Wand2, X, ArrowRight } from 'lucide-react';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useFeatureUsage } from '../../../hooks/useFeatureUsage';
+import { toast } from 'sonner';
 
 const ESSAY_TYPES = ['Argumentative', 'Expository', 'Analytical', 'Persuasive', 'Research Paper'];
 const ESSAY_TONES = ['Academic', 'Formal', 'Informative', 'Persuasive', 'Critical'];
@@ -23,7 +24,6 @@ export const EssayWriterView = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [essayContent, setEssayContent] = useState('');
   const [copied, setCopied] = useState(false);
-  const [limitError, setLimitError] = useState<string | null>(null);
 
   // Refine Toolbar State
   const [selectedText, setSelectedText] = useState('');
@@ -32,17 +32,11 @@ export const EssayWriterView = () => {
   const [isRefineModalOpen, setIsRefineModalOpen] = useState(false);
 
   const handleGenerateEssay = async () => {
-    if (usage.isExhausted) {
-      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
-      return;
-    }
-
     if (!topic.trim()) {
       alert("Please enter an essay topic or prompt.");
       return;
     }
 
-    setLimitError(null);
     setIsGenerating(true);
     setEssayContent('');
 
@@ -67,7 +61,7 @@ Essay Requirements:
       usage.refetch();
     } catch (err: any) {
       console.error("Essay generation failed:", err);
-      setLimitError(err?.message || 'Failed to draft essay.');
+      toast.error(err?.message || 'Failed to draft essay.');
       usage.refetch();
     } finally {
       setIsGenerating(false);
@@ -155,23 +149,9 @@ Essay Requirements:
               </div>
               <h2 className="text-xl font-bold text-primary-text tracking-tight">Essay Writer</h2>
             </div>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-              usage.remaining === 0 
-                ? 'bg-red-500/20 text-red-400 border-red-500/30' 
-                : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-            }`}>
-              {usage.remaining}/{usage.limit} uses
-            </span>
           </div>
           <p className="text-xs text-secondary-text font-medium">Draft academic papers, essays & refine prose with AI.</p>
         </div>
-
-        {limitError && (
-          <div className="m-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
-            <Clock className="w-4 h-4 text-red-400 shrink-0" />
-            <span>{limitError}</span>
-          </div>
-        )}
 
         <div className="p-5 space-y-5 flex-1">
           {/* Topic Input */}

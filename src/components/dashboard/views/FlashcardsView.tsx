@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookMarked, ChevronLeft, ChevronRight, RotateCcw, Plus, Sparkles, X, Loader2, Trash2, Clock } from 'lucide-react';
+import { BookMarked, ChevronLeft, ChevronRight, RotateCcw, Plus, Sparkles, X, Loader2, Trash2 } from 'lucide-react';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { processFileClientSide } from '../../../lib/documentProcessor';
 import { useAuth } from '../../../contexts/AuthContext';
 import { dbService } from '../../../services/db/databaseService';
 import { useFeatureUsage } from '../../../hooks/useFeatureUsage';
+import { toast } from 'sonner';
 
 interface Flashcard {
   id: string;
@@ -28,7 +29,6 @@ export const FlashcardsView = () => {
   const [activeDeck, setActiveDeck] = useState<Deck | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [limitError, setLimitError] = useState<string | null>(null);
 
   // Creation Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -147,12 +147,6 @@ export const FlashcardsView = () => {
 
   // AI Flashcard Generation handler
   const handleAIGenerate = async () => {
-    if (usage.isExhausted) {
-      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
-      setIsCreateModalOpen(false);
-      return;
-    }
-
     if (!newDeckTitle.trim()) {
       alert("Please enter a deck title.");
       return;
@@ -162,7 +156,6 @@ export const FlashcardsView = () => {
       return;
     }
 
-    setLimitError(null);
     setIsGenerating(true);
 
     try {
@@ -231,7 +224,7 @@ Output ONLY a raw JSON array of objects with the following schema:
       usage.refetch();
     } catch (err: any) {
       console.error("Flashcards generation failed:", err);
-      setLimitError(err?.message || 'Failed to generate flashcards.');
+      toast.error(err?.message || 'Failed to generate flashcards.');
       usage.refetch();
     } finally {
       setIsGenerating(false);
@@ -292,25 +285,11 @@ Output ONLY a raw JSON array of objects with the following schema:
                 <h2 className="text-2xl sm:text-3xl font-bold text-primary-text tracking-tight flex items-center gap-2">
                   <BookMarked className="w-6 h-6 text-purple-400" /> Flashcard Generator & Decks
                 </h2>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                  usage.remaining === 0 
-                    ? 'bg-red-500/20 text-red-400 border-red-500/30' 
-                    : usage.remaining === 1 
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
-                    : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                }`}>
-                  {usage.remaining} / {usage.limit} uses remaining (24h)
-                </span>
               </div>
               <p className="text-secondary-text text-[14px] mt-1">Generate active recall flashcards automatically or create custom study decks.</p>
             </div>
             <button 
               onClick={() => {
-                if (usage.isExhausted) {
-                  setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
-                  return;
-                }
-                setLimitError(null);
                 setIsCreateModalOpen(true);
               }}
               className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-primary hover:from-purple-500 hover:to-primary/90 text-primary-text rounded-xl font-semibold transition-all text-sm shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-105 shrink-0 self-start sm:self-auto"
@@ -318,13 +297,6 @@ Output ONLY a raw JSON array of objects with the following schema:
               <Plus className="w-4 h-4" /> Create Deck
             </button>
           </div>
-
-          {limitError && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs sm:text-sm flex items-center gap-3">
-              <Clock className="w-5 h-5 text-red-400 shrink-0" />
-              <span>{limitError}</span>
-            </div>
-          )}
 
           <div className="flex-1 overflow-y-auto scrollbar-hide pb-20">
             {decks.length === 0 ? (

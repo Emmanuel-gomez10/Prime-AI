@@ -5,6 +5,7 @@ import type { FileAttachment } from '../lib/primeAiEngine';
 import { processFileClientSide } from '../lib/documentProcessor';
 import { dbService } from '../services/db/databaseService';
 import { useAuth } from './AuthContext';
+import { toast } from 'sonner';
 
 export interface Message {
   id: string;
@@ -354,23 +355,8 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error("AI Generation Error:", error);
-      const errorMsgId = (Date.now() + 1).toString();
-      const errorMsg: Message = {
-        id: errorMsgId,
-        role: 'model',
-        content: `I encountered an issue processing your request.`,
-        timestamp: Date.now(),
-      };
-
-      setThreads((prev) =>
-        prev.map((t) => {
-          if (t.id !== currentThreadId) return t;
-          return {
-            ...t,
-            messages: [...t.messages, errorMsg],
-          };
-        })
-      );
+      const errMsg = error?.message || 'I encountered an issue processing your request.';
+      toast.error(errMsg);
     } finally {
       setIsTyping(false);
     }

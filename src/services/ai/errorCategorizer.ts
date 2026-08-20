@@ -1,3 +1,5 @@
+import { getFeatureLabel } from '../../config/subscriptions';
+
 /**
  * Error Categorizer for AI API Errors
  * Logs technical API details to console and provides clean, user-friendly UI messages.
@@ -19,7 +21,7 @@ export interface CategorizedAIError {
   rawMessage: string;
 }
 
-export const categorizeAIError = (error: any): CategorizedAIError => {
+export const categorizeAIError = (error: any, featureName?: string): CategorizedAIError => {
   const message = error?.message || String(error) || '';
   const status = error?.status || error?.statusCode;
 
@@ -55,12 +57,20 @@ export const categorizeAIError = (error: any): CategorizedAIError => {
     };
   }
 
-  // 3. Rate Limit / 429
-  if (status === 429 || message.includes('429') || message.includes('rate_limit_exceeded') || message.includes('insufficient_quota')) {
+  // 3. Rate Limit / 429 / Quota Reached
+  if (status === 429 || message.includes('429') || message.includes('rate_limit_exceeded') || message.includes('insufficient_quota') || message.toLowerCase().includes('limit exceeded') || message.toLowerCase().includes('usage limit')) {
+    const normFeature = (featureName || '').toLowerCase().trim();
+    const isTutor = normFeature === 'ai_tutor' || normFeature === 'tutor' || normFeature === 'ai tutor';
+    const dynamicLabel = featureName && !isTutor ? getFeatureLabel(featureName) : 'Feature';
+
+    const userMessage = isTutor
+      ? "You've reached your AI Tutor limit for the current 24-hour usage window. Please try again when your limit resets, or subscribe to Premium for more access."
+      : `You've reached your ${dynamicLabel} limit for the current 24-hour usage window. Please try again when your limit resets, or subscribe to Premium for more access.`;
+
     return {
       category: 'RATE_LIMIT_EXCEEDED',
-      userMessage: 'Please try again in a moment.',
-      isRetryable: true,
+      userMessage,
+      isRetryable: false,
       rawMessage: message,
     };
   }

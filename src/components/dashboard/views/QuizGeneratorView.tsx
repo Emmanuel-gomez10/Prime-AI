@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileQuestion, Plus, Sparkles, X, Loader2, CheckCircle2, XCircle, RotateCcw, ArrowRight, Award, Trash2, School, Layers, BookOpen, Clock } from 'lucide-react';
+import { FileQuestion, Plus, Sparkles, X, Loader2, CheckCircle2, XCircle, RotateCcw, ArrowRight, Award, Trash2, School, Layers, BookOpen } from 'lucide-react';
 import Markdown from 'markdown-to-jsx';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { processFileClientSide } from '../../../lib/documentProcessor';
@@ -8,6 +8,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { dbService } from '../../../services/db/databaseService';
 import { UNIZIK_FACULTIES, UNIVERSITIES_LIST } from '../../../data/unizikData';
 import { useFeatureUsage } from '../../../hooks/useFeatureUsage';
+import { toast } from 'sonner';
 
 interface QuizQuestion {
   id: string;
@@ -40,7 +41,6 @@ export const QuizGeneratorView = () => {
   const usage = useFeatureUsage('quiz_generator');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [limitError, setLimitError] = useState<string | null>(null);
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -167,18 +167,11 @@ export const QuizGeneratorView = () => {
   };
 
   const handleGenerateQuiz = async () => {
-    if (usage.isExhausted) {
-      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
-      setIsCreateModalOpen(false);
-      return;
-    }
-
     if (!quizTitle.trim()) {
       alert("Please enter a quiz title.");
       return;
     }
 
-    setLimitError(null);
     setIsGenerating(true);
 
     try {
@@ -249,7 +242,7 @@ Output ONLY a raw JSON array of objects with the following schema:
       usage.refetch();
     } catch (err: any) {
       console.error("Quiz generation failed:", err);
-      setLimitError(err?.message || 'Failed to generate quiz.');
+      toast.error(err?.message || 'Failed to generate quiz.');
       usage.refetch();
     } finally {
       setIsGenerating(false);
@@ -267,25 +260,11 @@ Output ONLY a raw JSON array of objects with the following schema:
                 <h2 className="text-2xl sm:text-3xl font-bold text-primary-text tracking-tight flex items-center gap-2">
                   <FileQuestion className="w-6 h-6 text-blue-400" /> AI Quiz Generator
                 </h2>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                  usage.remaining === 0 
-                    ? 'bg-red-500/20 text-red-400 border-red-500/30' 
-                    : usage.remaining === 1 
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
-                    : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                }`}>
-                  {usage.remaining} / {usage.limit} uses remaining (24h)
-                </span>
               </div>
               <p className="text-secondary-text text-[14px] mt-1">Generate practice quizzes by university, faculty & department with instant scores & explanations.</p>
             </div>
             <button 
               onClick={() => {
-                if (usage.isExhausted) {
-                  setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
-                  return;
-                }
-                setLimitError(null);
                 setIsCreateModalOpen(true);
               }}
               className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-primary hover:from-blue-500 hover:to-primary/90 text-primary-text rounded-xl font-semibold transition-all text-sm shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 shrink-0 self-start sm:self-auto"
@@ -293,13 +272,6 @@ Output ONLY a raw JSON array of objects with the following schema:
               <Plus className="w-4 h-4" /> Create Department Quiz
             </button>
           </div>
-
-          {limitError && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs sm:text-sm flex items-center gap-3">
-              <Clock className="w-5 h-5 text-red-400 shrink-0" />
-              <span>{limitError}</span>
-            </div>
-          )}
 
           <div className="flex-1 overflow-y-auto scrollbar-hide pb-20">
             {quizzes.length === 0 ? (

@@ -8,7 +8,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import Markdown from 'markdown-to-jsx';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
-import { useFeatureUsage } from '../../hooks/useFeatureUsage';
 import { supabase } from '../../lib/supabaseClient';
 import { PlaceholderView } from './views/PlaceholderView';
 import { StudyFetchView } from './views/StudyFetchView';
@@ -302,7 +301,6 @@ interface InputBarProps {
 
 const InputBar = ({ inputText, setInputText, handleKeyDown, handleSend, isTyping }: InputBarProps) => {
   const { activeAttachments, attachFile, removeAttachment, isListening, toggleVoiceInput } = useWorkspace();
-  const tutorUsage = useFeatureUsage('ai_tutor');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -388,9 +386,6 @@ const InputBar = ({ inputText, setInputText, handleKeyDown, handleSend, isTyping
       </div>
       
       <div className="text-center mt-2.5 flex items-center justify-center gap-3">
-        <span className="text-[11px] font-semibold text-primary/80 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
-          AI Tutor: {tutorUsage.remaining} / {tutorUsage.limit} uses remaining (24h)
-        </span>
         <p className="text-[11px] text-primary-text/30 font-medium tracking-wide hidden sm:inline">Prime AI can make mistakes. Verify important information.</p>
       </div>
     </div>

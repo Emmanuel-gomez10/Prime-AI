@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Upload, FileText, File as FileIcon, X, Loader2, Sparkles, Bookmark, HelpCircle, ArrowRight, Clock } from 'lucide-react';
+import { Upload, FileText, File as FileIcon, X, Loader2, Sparkles, Bookmark, HelpCircle, ArrowRight } from 'lucide-react';
 import { processFileClientSide } from '../../../lib/documentProcessor';
 import { primeEngine } from '../../../lib/primeAiEngine';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { dbService } from '../../../services/db/databaseService';
 import { useFeatureUsage } from '../../../hooks/useFeatureUsage';
+import { toast } from 'sonner';
 
 
 interface SavedStudyMaterial {
@@ -27,7 +28,6 @@ export const StudyFetchView = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<SavedStudyMaterial | null>(null);
-  const [limitError, setLimitError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadMaterials = async () => {
@@ -95,11 +95,6 @@ export const StudyFetchView = () => {
   };
 
   const handleDocumentUpload = async (file: File) => {
-    if (usage.isExhausted) {
-      setLimitError(`Daily limit reached (${usage.limit}/${usage.limit} uses). Resets in ${usage.resetInFormatted || '24 hours'}.`);
-      return;
-    }
-    setLimitError(null);
     setCurrentFile(file);
     setIsProcessing(true);
 
@@ -173,7 +168,7 @@ export const StudyFetchView = () => {
       usage.refetch();
     } catch (err: any) {
       console.error("Study fetch processing failed:", err);
-      setLimitError(err?.message || 'Failed to analyze document.');
+      toast.error(err?.message || 'Failed to analyze document.');
       usage.refetch();
     } finally {
       setIsProcessing(false);
@@ -204,26 +199,10 @@ export const StudyFetchView = () => {
             <h2 className="text-2xl sm:text-3xl font-bold text-primary-text tracking-tight flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-emerald-400" /> Study Fetch
             </h2>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
-              usage.remaining === 0 
-                ? 'bg-red-500/20 text-red-400 border-red-500/30' 
-                : usage.remaining === 1 
-                ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
-                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-            }`}>
-              {usage.remaining} / {usage.limit} uses remaining (24h)
-            </span>
           </div>
           <p className="text-secondary-text text-[14px] mt-1">Upload PDFs, lecture slides, or DOCX files for instant AI summaries & 2 key study questions.</p>
         </div>
       </div>
-
-      {limitError && (
-        <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs sm:text-sm flex items-center gap-3">
-          <Clock className="w-5 h-5 text-red-400 shrink-0" />
-          <span>{limitError}</span>
-        </div>
-      )}
 
       {/* Upload Zone */}
       <div 

@@ -114,7 +114,9 @@ class AIService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'AI Gateway request failed.' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: AI service unavailable.`);
+        const errObj: any = new Error(errorData.error || `HTTP ${response.status}: AI service unavailable.`);
+        errObj.status = response.status;
+        throw errObj;
       }
 
       if (!response.body) {
@@ -136,7 +138,7 @@ class AIService {
       };
 
     } catch (err: any) {
-      const categorized = categorizeAIError(err);
+      const categorized = categorizeAIError(err, request.featureName);
       aiLogger.logError({
         feature: normFeature,
         requestedModel: targetModel,
