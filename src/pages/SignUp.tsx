@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Layers, CheckCircle2 } from 'lucide-react';
+import { Layers, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -31,6 +31,8 @@ export const SignUp = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema)
@@ -273,11 +275,11 @@ export const SignUp = () => {
               <div className="flex flex-col gap-1">
                 <div className="relative group">
                   <input 
-                    type="password" 
+                    type={showPassword ? 'text' : 'password'} 
                     id="password" 
                     placeholder=" "
                     {...register('password')}
-                    className="block w-full px-4 pt-6 pb-2 text-sm text-primary-text bg-card-hover border border-divider rounded-xl appearance-none focus:outline-none focus:ring-0 focus:border-[#7C3AED] focus:bg-card-hover peer transition-all duration-300 shadow-inner"
+                    className="block w-full pl-4 pr-11 pt-6 pb-2 text-sm text-primary-text bg-card-hover border border-divider rounded-xl appearance-none focus:outline-none focus:ring-0 focus:border-[#7C3AED] focus:bg-card-hover peer transition-all duration-300 shadow-inner"
                   />
                   <label 
                     htmlFor="password" 
@@ -285,6 +287,18 @@ export const SignUp = () => {
                   >
                     Password
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 z-20 text-secondary-text hover:text-primary-text transition-colors p-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
                 {errors.password && <span className="text-red-400 text-xs ml-1">{errors.password.message}</span>}
               </div>
@@ -292,11 +306,11 @@ export const SignUp = () => {
               <div className="flex flex-col gap-1">
                 <div className="relative group">
                   <input 
-                    type="password" 
+                    type={showConfirmPassword ? 'text' : 'password'} 
                     id="confirmPassword" 
                     placeholder=" "
                     {...register('confirmPassword')}
-                    className="block w-full px-4 pt-6 pb-2 text-sm text-primary-text bg-card-hover border border-divider rounded-xl appearance-none focus:outline-none focus:ring-0 focus:border-[#7C3AED] focus:bg-card-hover peer transition-all duration-300 shadow-inner"
+                    className="block w-full pl-4 pr-11 pt-6 pb-2 text-sm text-primary-text bg-card-hover border border-divider rounded-xl appearance-none focus:outline-none focus:ring-0 focus:border-[#7C3AED] focus:bg-card-hover peer transition-all duration-300 shadow-inner"
                   />
                   <label 
                     htmlFor="confirmPassword" 
@@ -304,6 +318,18 @@ export const SignUp = () => {
                   >
                     Confirm Password
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 z-20 text-secondary-text hover:text-primary-text transition-colors p-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
                 {errors.confirmPassword && <span className="text-red-400 text-xs ml-1">{errors.confirmPassword.message}</span>}
               </div>
