@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRIME — AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="hud">
+
+    <div class="grid"></div>
+    <div class="scanline"></div>
+
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+    <div class="hud-corner bottom-left"></div>
+    <div class="hud-corner bottom-right"></div>
+
+    <div class="hud-header">
+        <div class="brand">
+            <span class="brand-mark">P</span>
+            <span>PRIME</span>
+        </div>
+
+        <div class="system-status">
+            <span class="status-light"></span>
+            SYSTEM ONLINE
+        </div>
+    </div>
+
+    <div class="core-stage">
+
+        <div class="orbital orbital-one"></div>
+        <div class="orbital orbital-two"></div>
+        <div class="orbital orbital-three"></div>
+
+        <div class="radar">
+            <div class="radar-sweep"></div>
+        </div>
+
+        <div class="core-halo"></div>
+
+        <div class="core">
+            <div class="core-grid"></div>
+            <div class="core-energy"></div>
+            <div class="core-point"></div>
+        </div>
+
+        <div class="target target-one"></div>
+        <div class="target target-two"></div>
+        <div class="target target-three"></div>
+        <div class="target target-four"></div>
+
+        <div class="core-label">
+            <div class="prime-title">PRIME</div>
+            <div class="state" id="state">STANDBY</div>
+        </div>
+
+    </div>
+
+    <div class="hud-data data-left">
+        <span>NEURAL CORE</span>
+        <strong>ONLINE</strong>
+    </div>
+
+    <div class="hud-data data-right">
+        <span>LOCAL AI</span>
+        <strong>READY</strong>
+    </div>
+
+    <div class="bottom-interface">
+
+        <div class="audio-bars">
+            <i></i><i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i><i></i><i></i>
+        </div>
+
+
+   <div class="voice-status" id="voiceStatus">
+    <span class="voice-dot"></span>
+    <span id="voiceText">VOICE SYSTEM READY</span>
+</div>
+
+<button id="micButton" class="mic-button" aria-label="Activate PRIME">
+    <span class="mic-icon">◉</span>
+</button>
+
+
+    </div>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
